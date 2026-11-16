@@ -1,0 +1,414 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-pixel: "Press Start 2P", monospace;
+  --font-body: "Chakra Petch", system-ui, sans-serif;
+  --font-sans-exam: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", monospace;
+}
+
+/* ============================================================
+   Academic Competitive Exam Surfaces (Light & Dark Mode)
+   ============================================================ */
+:root,
+html.light {
+  --exam-bg: #f8fafc;
+  --exam-surface: #ffffff;
+  --exam-surface-alt: #f1f5f9;
+  --exam-border: #e2e8f0;
+  --exam-border-strong: #cbd5e1;
+  --exam-text: #0f172a;
+  --exam-text-secondary: #475569;
+  --exam-text-muted: #64748b;
+  --exam-accent: #2563eb;
+  --exam-accent-hover: #1d4ed8;
+  --exam-accent-soft: #eff6ff;
+  --exam-success: #16a34a;
+  --exam-success-soft: #f0fdf4;
+  --exam-warning: #d97706;
+  --exam-warning-soft: #fffbeb;
+  --exam-danger: #dc2626;
+  --exam-danger-soft: #fef2f2;
+  --exam-nav-bg: #ffffff;
+}
+
+html.dark {
+  --exam-bg: #0b1120;
+  --exam-surface: #111827;
+  --exam-surface-alt: #1e293b;
+  --exam-border: #1e293b;
+  --exam-border-strong: #334155;
+  --exam-text: #f8fafc;
+  --exam-text-secondary: #cbd5e1;
+  --exam-text-muted: #94a3b8;
+  --exam-accent: #3b82f6;
+  --exam-accent-hover: #60a5fa;
+  --exam-accent-soft: #172554;
+  --exam-success: #22c55e;
+  --exam-success-soft: #052e16;
+  --exam-warning: #f59e0b;
+  --exam-warning-soft: #451a03;
+  --exam-danger: #ef4444;
+  --exam-danger-soft: #450a0a;
+  --exam-nav-bg: #0f172a;
+}
+
+/* ============================================================
+   Preserved Pixel Arcade Themes (Used in Arcade Hub & 6 Games)
+   ============================================================ */
+:root,
+[data-theme="cyber-midnight"] {
+  --bg-canvas: #080c1e;
+  --bg-deep: #04060e;
+  --bg-panel: #111833;
+  --bg-panel-alt: #182247;
+  --border-pixel: #2d4078;
+  --accent-primary: #00f0ff;
+  --accent-secondary: #ffe600;
+  --accent-purple: #a855f7;
+  --accent-green: #22ff66;
+  --accent-orange: #ff6b00;
+  --text-primary: #f4f7ff;
+  --text-secondary: #b3c2eb;
+  --text-muted: #7c8ec4;
+}
+
+[data-theme="emerald-matrix"] {
+  --bg-canvas: #05130c;
+  --bg-deep: #020805;
+  --bg-panel: #0b2217;
+  --bg-panel-alt: #123323;
+  --border-pixel: #206944;
+  --accent-primary: #22ff66;
+  --accent-secondary: #ffe600;
+  --accent-purple: #00f0ff;
+  --accent-green: #22ff66;
+  --accent-orange: #ff9f1c;
+  --text-primary: #ecfff3;
+  --text-secondary: #a2e0b9;
+  --text-muted: #5ea378;
+}
+
+[data-theme="volcanic-forge"] {
+  --bg-canvas: #160a08;
+  --bg-deep: #0b0403;
+  --bg-panel: #27130f;
+  --bg-panel-alt: #381b15;
+  --border-pixel: #7c3526;
+  --accent-primary: #ff6b00;
+  --accent-secondary: #ffe600;
+  --accent-purple: #f43f5e;
+  --accent-green: #22ff66;
+  --accent-orange: #ff9500;
+  --text-primary: #fff6f2;
+  --text-secondary: #f2bfb2;
+  --text-muted: #b87c6e;
+}
+
+[data-theme="synthwave-grid"] {
+  --bg-canvas: #120824;
+  --bg-deep: #070311;
+  --bg-panel: #1f113d;
+  --bg-panel-alt: #2b1854;
+  --border-pixel: #6135ad;
+  --accent-primary: #d946ef;
+  --accent-secondary: #00f0ff;
+  --accent-purple: #a855f7;
+  --accent-green: #22ff66;
+  --accent-orange: #ffe600;
+  --text-primary: #fbf5ff;
+  --text-secondary: #d5bdf5;
+  --text-muted: #9b7cc9;
+}
+
+html,
+body {
+  background-color: var(--exam-bg);
+  color: var(--exam-text);
+  font-family: var(--font-sans-exam);
+  overflow-x: hidden;
+}
+
+.arcade-surface {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+.font-pixel {
+  font-family: var(--font-pixel);
+  letter-spacing: 0.03em;
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-exam {
+  font-family: var(--font-sans-exam);
+}
+
+.font-code {
+  font-family: var(--font-code);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clean Academic Exam Cards & Controls */
+.exam-card {
+  background-color: var(--exam-surface);
+  border: 1px solid var(--exam-border);
+  border-radius: 10px;
+}
+
+.exam-card-subtle {
+  background-color: var(--exam-surface-alt);
+  border: 1px solid var(--exam-border);
+  border-radius: 8px;
+}
+
+.exam-input {
+  background-color: var(--exam-surface);
+  color: var(--exam-text);
+  border: 1px solid var(--exam-border-strong);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 140ms ease;
+}
+
+.exam-input:focus {
+  border-color: var(--exam-accent);
+}
+
+.exam-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.exam-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.exam-btn-primary {
+  background-color: var(--exam-accent);
+  color: #ffffff;
+  border: 1px solid var(--exam-accent);
+}
+.exam-btn-primary:hover:not(:disabled) {
+  background-color: var(--exam-accent-hover);
+}
+
+.exam-btn-secondary {
+  background-color: var(--exam-surface);
+  color: var(--exam-text);
+  border: 1px solid var(--exam-border-strong);
+}
+.exam-btn-secondary:hover:not(:disabled) {
+  background-color: var(--exam-surface-alt);
+}
+
+/* ============================================================
+   Preserved Pixel Arcade Components (Used by 6 Mini-Games)
+   ============================================================ */
+.pixel-panel {
+  background-color: var(--bg-panel);
+  border: 3px solid var(--border-pixel);
+  box-shadow: 5px 5px 0px #000000;
+  border-radius: 0px;
+  color: var(--text-primary);
+}
+
+.pixel-panel-dark {
+  background-color: var(--bg-deep);
+  border: 3px solid var(--border-pixel);
+  box-shadow: 4px 4px 0px #000000;
+  border-radius: 0px;
+  color: var(--text-primary);
+}
+
+.pixel-panel-accent {
+  background-color: var(--bg-panel-alt);
+  border: 3px solid var(--accent-primary);
+  box-shadow: 5px 5px 0px #000000;
+  border-radius: 0px;
+  color: var(--text-primary);
+}
+
+.pixel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-pixel);
+  border-radius: 0px;
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0px #000000;
+  transition: transform 90ms steps(2), box-shadow 90ms steps(2), background-color 120ms linear;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.pixel-btn:hover:not(:disabled) {
+  transform: translate(-1px, -2px);
+  box-shadow: 5px 6px 0px #000000;
+}
+
+.pixel-btn:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0px #000000;
+}
+
+.pixel-btn:focus-visible {
+  outline: 3px solid var(--accent-secondary);
+  outline-offset: 2px;
+}
+
+.pixel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pixel-btn-cyan {
+  background-color: #00f0ff;
+  color: #04060e;
+  border-color: #ffffff;
+  box-shadow: 4px 4px 0px #005b66;
+}
+.pixel-btn-cyan:hover:not(:disabled) {
+  background-color: #5ef7ff;
+  box-shadow: 5px 6px 0px #005b66;
+}
+
+.pixel-btn-yellow {
+  background-color: #ffe600;
+  color: #04060e;
+  border-color: #ffffff;
+  box-shadow: 4px 4px 0px #7a6200;
+}
+.pixel-btn-yellow:hover:not(:disabled) {
+  background-color: #fff05c;
+  box-shadow: 5px 6px 0px #7a6200;
+}
+
+.pixel-btn-green {
+  background-color: #22ff66;
+  color: #04060e;
+  border-color: #ffffff;
+  box-shadow: 4px 4px 0px #0a5c24;
+}
+.pixel-btn-green:hover:not(:disabled) {
+  background-color: #66ff94;
+  box-shadow: 5px 6px 0px #0a5c24;
+}
+
+.pixel-btn-purple {
+  background-color: #a855f7;
+  color: #ffffff;
+  border-color: #e9d5ff;
+  box-shadow: 4px 4px 0px #411570;
+}
+.pixel-btn-purple:hover:not(:disabled) {
+  background-color: #bc75ff;
+  box-shadow: 5px 6px 0px #411570;
+}
+
+.pixel-btn-orange {
+  background-color: #ff6b00;
+  color: #04060e;
+  border-color: #ffe4cc;
+  box-shadow: 4px 4px 0px #662700;
+}
+.pixel-btn-orange:hover:not(:disabled) {
+  background-color: #ff8c38;
+  box-shadow: 5px 6px 0px #662700;
+}
+
+.pixel-btn-ghost {
+  background-color: var(--bg-panel-alt);
+  color: var(--text-primary);
+  border-color: var(--border-pixel);
+  box-shadow: 4px 4px 0px #000000;
+}
+.pixel-btn-ghost:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.pixel-input {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  border: 3px solid var(--border-pixel);
+  border-radius: 0px;
+  font-family: var(--font-body);
+  outline: none;
+}
+
+.pixel-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 3px 3px 0px #000000;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+}
+
+@keyframes pixel-bob {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pixel-shake {
+  0%, 100% { transform: translateX(0px); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+@keyframes pixel-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.animate-pixel-bob {
+  animation: pixel-bob 1.8s steps(3) infinite;
+}
+
+.animate-pixel-shake {
+  animation: pixel-shake 0.32s steps(4);
+}
+
+.animate-pixel-flash {
+  animation: pixel-flash 0.9s steps(2) infinite;
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
