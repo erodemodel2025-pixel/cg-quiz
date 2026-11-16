@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Award, BarChart3, Clock, Flame, Play, Target, TrendingUp } from 'lucide-react';
 import { computeExamLevel } from '../../shared/progression.ts';
 import type { AnalyticsSummary, ExamResultSummary, ExamSettings } from '../../shared/types.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import { readOfflineCache, updateOfflineCache } from '../utils/storageMigration.ts';
 import { QuizResultsView } from '../components/quiz/QuizResultsView.tsx';
+import { PixelIcon, PixelIllustration, PixelLoader } from '../components/pixel/PixelArtAssets.tsx';
 
 interface AnalyticsPageProps {
   onStartQuiz: (preset?: Partial<ExamSettings>, customIds?: string[]) => void;
@@ -31,13 +32,14 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
         return;
       }
 
-      const res = await fetch(
+      const res = await safeFetchJson<AnalyticsSummary>(
         `/api/exam/analytics?userId=${encodeURIComponent(examUserId)}&range=${range}`
       );
-      if (res.ok) {
-        const d = (await res.json()) as AnalyticsSummary;
-        setData(d);
-        updateOfflineCache({ analytics: d });
+      if (res.ok && res.data) {
+        setData(res.data);
+        updateOfflineCache({ analytics: res.data });
+      } else if (res.error) {
+        reportError(res.error);
       }
     } catch (err) {
       reportError(String(err));
@@ -57,10 +59,15 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
       return;
     }
     try {
-      const res = await fetch(`/api/exam/history/${encodeURIComponent(attemptId)}`);
-      if (res.ok) {
-        const summary = (await res.json()) as ExamResultSummary;
-        setOpenedAttempt(summary);
+      const res = await safeFetchJson<ExamResultSummary>(
+        `/api/exam/history/${encodeURIComponent(attemptId)}`
+      );
+      if (res.ok && res.data) {
+        setOpenedAttempt(res.data);
+      } else if (cached) {
+        setOpenedAttempt(cached);
+      } else if (res.error) {
+        reportError(res.error);
       }
     } catch (err) {
       reportError(String(err));
@@ -76,11 +83,12 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
             onClick={() => setOpenedAttempt(null)}
             className="exam-btn exam-btn-secondary text-xs"
           >
-            Back to Analytics & History
+            ← Back to Progress &amp; History
           </button>
         </div>
         <QuizResultsView
           result={openedAttempt}
+          onPlayAgain={() => onStartQuiz({ mode: openedAttempt.mode })}
           onRetryWrong={(wrongIds) => onStartQuiz({ mode: 'revision' }, wrongIds)}
           onPracticeSimilar={(preset) => onStartQuiz(preset)}
           onBackToStudio={() => setOpenedAttempt(null)}
@@ -93,17 +101,19 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
   const levelInfo = computeExamLevel(data?.streaks.examXp ?? 0);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-7 sm:py-9 space-y-6">
       {/* Header + Date Range Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--exam-text)]">Performance Analytics</h1>
-          <p className="text-sm text-[var(--exam-text-secondary)]">
-            Computed exclusively from your recorded quiz and mock test attempts.
+          <h1 className="font-pixel text-base sm:text-xl text-[var(--exam-text)]">
+            MY PROGRESS &amp; HISTORY
+          </h1>
+          <p className="text-sm text-[var(--exam-text-secondary)] mt-1">
+            Real stats from your completed quizzes and mock tests.
           </p>
         </div>
 
-        <div className="flex gap-1.5 bg-[var(--exam-surface)] p-1 rounded-lg border border-[var(--exam-border)]">
+        <div className="flex gap-1.5 bg-[var(--exam-surface)] p-1 border-3 border-[var(--exam-border)]">
           {(
             [
               { id: '7d', label: '7 Days' },
@@ -115,10 +125,10 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
               key={r.id}
               type="button"
               onClick={() => setRange(r.id)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer ${
+              className={`px-3 py-1.5 border-2 font-display-pixel text-xs font-bold cursor-pointer ${
                 range === r.id
-                  ? 'bg-[var(--exam-accent)] text-white'
-                  : 'text-[var(--exam-text-secondary)] hover:text-[var(--exam-text)]'
+                  ? 'bg-[var(--voxel-gold)] text-[#0B0F1A] border-[#0B0F1A]'
+                  : 'border-transparent text-[var(--exam-text-secondary)] hover:text-[var(--exam-text)]'
               }`}
             >
               {r.label}
@@ -131,41 +141,49 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
       {data && (
         <div className="exam-card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <Flame size={18} className="text-[var(--exam-warning)]" />
+            <div className="flex items-center gap-2.5">
+              <PixelIcon name="flame" size={18} className="text-[var(--exam-warning)]" />
               <div>
-                <div className="text-xs text-[var(--exam-text-muted)]">Daily Streak</div>
+                <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                  DAILY STREAK
+                </div>
                 <div className="font-code font-bold text-[var(--exam-text)] tabular-nums">
                   {data.streaks.dailyStreak} day(s)
                 </div>
               </div>
             </div>
             <div>
-              <div className="text-xs text-[var(--exam-text-muted)]">Quiz Streak</div>
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                QUIZ STREAK
+              </div>
               <div className="font-code font-bold text-[var(--exam-text)] tabular-nums">
                 {data.streaks.quizStreak}
               </div>
             </div>
             <div>
-              <div className="text-xs text-[var(--exam-text-muted)]">Perfect Streak</div>
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                PERFECT STREAK
+              </div>
               <div className="font-code font-bold text-[var(--exam-success)] tabular-nums">
                 {data.streaks.perfectStreak}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 min-w-[210px]">
-            <Award size={18} className="text-[var(--exam-accent)] shrink-0" />
+          <div className="flex items-center gap-3 min-w-[220px]">
+            <PixelIcon name="trophy" size={18} className="text-[var(--voxel-gold)] shrink-0" />
             <div className="flex-1">
               <div className="flex justify-between text-xs font-medium">
-                <span className="font-bold text-[var(--exam-text)]">{levelInfo.title}</span>
+                <span className="font-display-pixel font-bold text-[var(--exam-text)]">
+                  {levelInfo.title}
+                </span>
                 <span className="font-code text-[var(--exam-text-muted)] tabular-nums">
                   {data.streaks.examXp} XP
                 </span>
               </div>
-              <div className="h-1.5 bg-[var(--exam-surface-alt)] rounded-full overflow-hidden mt-1">
+              <div className="h-2.5 bg-[var(--exam-surface-alt)] border border-[#0B0F1A] overflow-hidden mt-1">
                 <div
-                  className="h-full bg-[var(--exam-accent)]"
+                  className="h-full bg-[var(--voxel-green)]"
                   style={{ width: `${levelInfo.progressPercent}%` }}
                 />
               </div>
@@ -175,22 +193,24 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
       )}
 
       {loading ? (
-        <div className="exam-card p-8 text-center text-sm text-[var(--exam-text-muted)]">
-          Calculating real performance metrics...
+        <div className="exam-card p-8">
+          <PixelLoader label="LOADING PROGRESS BLOCKS..." />
         </div>
       ) : !data || !data.hasData ? (
         <div className="exam-card p-8 sm:p-12 text-center space-y-4">
-          <BarChart3 size={36} className="mx-auto text-[var(--exam-accent)]" />
-          <h2 className="text-lg font-bold text-[var(--exam-text)]">No quiz attempts recorded yet</h2>
+          <PixelIllustration name="question_block" size={56} className="mx-auto" />
+          <h2 className="font-pixel text-sm sm:text-base text-[var(--exam-text)]">
+            NO QUIZZES YET
+          </h2>
           <p className="text-sm text-[var(--exam-text-secondary)] max-w-md mx-auto">
-            Complete your first Quick Quiz or Mock Test to unlock real accuracy trends, speed classification, subject breakdowns, and weak-topic insights.
+            Finish your first Quick Quiz or Mock Exam to unlock accuracy bars, speed breakdown, and saved attempt history.
           </p>
           <button
             type="button"
             onClick={() => onStartQuiz({ mode: 'quick' })}
             className="exam-btn exam-btn-primary text-sm"
           >
-            <Play size={16} fill="currentColor" /> Take Your First Quick Quiz
+            <PixelIcon name="play" size={15} /> START QUIZ
           </button>
         </div>
       ) : (
@@ -198,48 +218,60 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
           {/* Primary KPIs */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             <div className="exam-card p-4">
-              <div className="text-xs text-[var(--exam-text-muted)]">Total Quizzes</div>
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                QUIZZES
+              </div>
               <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-text)] mt-1">
                 {data.totalQuizzes}
               </div>
             </div>
             <div className="exam-card p-4">
-              <div className="text-xs text-[var(--exam-text-muted)]">Attempted Qs</div>
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                ATTEMPTED
+              </div>
               <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-text)] mt-1">
                 {data.totalAttempted}
               </div>
             </div>
             <div className="exam-card p-4">
-              <div className="text-xs text-[var(--exam-text-muted)]">Accuracy</div>
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                ACCURACY
+              </div>
               <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-success)] mt-1">
                 {data.overallAccuracy}%
               </div>
             </div>
             <div className="exam-card p-4">
-              <div className="text-xs text-[var(--exam-text-muted)]">Correct / Wrong</div>
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                RIGHT / WRONG
+              </div>
               <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-text)] mt-1">
                 {data.totalCorrect} / {data.totalWrong}
               </div>
             </div>
             <div className="exam-card p-4">
-              <div className="text-xs text-[var(--exam-text-muted)]">Avg Time / Q</div>
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                AVG TIME / Q
+              </div>
               <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-text)] mt-1">
                 {data.avgTimePerQuestion}s
               </div>
             </div>
             <div className="exam-card p-4">
-              <div className="text-xs text-[var(--exam-text-muted)]">Best Score</div>
-              <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-accent)] mt-1">
+              <div className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+                BEST SCORE
+              </div>
+              <div className="text-xl font-bold font-code tabular-nums text-[var(--voxel-gold)] mt-1">
                 {data.bestScore}
               </div>
             </div>
           </div>
 
-          {/* Accuracy Over Time SVG Chart + Subject Performance */}
+          {/* Accuracy Over Time Pixel Bar Chart + Subject Performance */}
           <div className="grid lg:grid-cols-2 gap-4">
             <div className="exam-card p-5">
-              <h2 className="text-sm font-bold text-[var(--exam-text)] flex items-center gap-2 mb-4">
-                <TrendingUp size={16} className="text-[var(--exam-accent)]" /> Accuracy Trend
+              <h2 className="font-pixel text-xs text-[var(--exam-text)] flex items-center gap-2 mb-4">
+                <PixelIcon name="score" size={14} className="text-[var(--exam-accent)]" /> ACCURACY TREND
               </h2>
               {data.chartSeries.length > 0 ? (
                 <div className="w-full overflow-x-auto">
@@ -255,7 +287,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
                             y2={y}
                             stroke="currentColor"
                             className="text-[var(--exam-border)]"
-                            strokeDasharray="3 3"
+                            strokeDasharray="4 4"
                           />
                           <text
                             x="6"
@@ -271,7 +303,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
                     })}
                     {data.chartSeries.map((pt, i) => {
                       const barW = Math.min(28, Math.floor(340 / Math.max(1, data.chartSeries.length)) - 6);
-                      const x = 44 + i * ((355) / Math.max(1, data.chartSeries.length));
+                      const x = 44 + i * (355 / Math.max(1, data.chartSeries.length));
                       const h = Math.max(4, (pt.accuracy / 100) * 110);
                       const y = 135 - h;
                       return (
@@ -281,8 +313,9 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
                             y={y}
                             width={barW}
                             height={h}
-                            rx="3"
-                            fill="var(--exam-accent)"
+                            fill="var(--voxel-green)"
+                            stroke="#0B0F1A"
+                            strokeWidth="2"
                           />
                           <text
                             x={x + barW / 2}
@@ -315,17 +348,19 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
             </div>
 
             <div className="exam-card p-5">
-              <h2 className="text-sm font-bold text-[var(--exam-text)] mb-4">Subject Performance</h2>
+              <h2 className="font-pixel text-xs text-[var(--exam-text)] mb-4">SUBJECT ACCURACY</h2>
               <div className="space-y-3">
                 {data.subjectPerformance.map((s) => (
                   <div key={s.subject} className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span className="font-semibold text-[var(--exam-text)]">{s.subject}</span>
+                      <span className="font-display-pixel font-bold text-[var(--exam-text)]">
+                        {s.subject}
+                      </span>
                       <span className="font-code text-[var(--exam-text-secondary)] tabular-nums">
                         {s.correct}/{s.attempted} ({s.accuracy}%)
                       </span>
                     </div>
-                    <div className="h-2 bg-[var(--exam-surface-alt)] rounded-full overflow-hidden">
+                    <div className="h-3 bg-[var(--exam-surface-alt)] border border-[#0B0F1A] overflow-hidden">
                       <div
                         className="h-full bg-[var(--exam-accent)]"
                         style={{ width: `${s.accuracy}%` }}
@@ -340,7 +375,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
           {/* Strong Topics / Weak Topics / Speed Classification */}
           <div className="grid md:grid-cols-3 gap-4">
             <div className="exam-card p-5 space-y-2.5">
-              <h3 className="text-sm font-bold text-[var(--exam-success)]">Strong Topics</h3>
+              <h3 className="font-pixel text-xs text-[var(--exam-success)]">STRONG TOPICS</h3>
               {data.strongTopics.length === 0 ? (
                 <p className="text-xs text-[var(--exam-text-muted)]">
                   Score 70%+ accuracy in topics to list strengths here.
@@ -358,8 +393,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
             </div>
 
             <div className="exam-card p-5 space-y-2.5">
-              <h3 className="text-sm font-bold text-[var(--exam-warning)] flex items-center gap-1.5">
-                <Target size={15} /> Weak Topics & Mistakes
+              <h3 className="font-pixel text-xs text-[var(--exam-warning)] flex items-center gap-1.5">
+                <PixelIcon name="target" size={14} /> WEAK SPOTS
               </h3>
               {data.weakTopics.length === 0 && data.mistakenConcepts.length === 0 ? (
                 <p className="text-xs text-[var(--exam-text-muted)]">No weak topics detected yet.</p>
@@ -388,8 +423,8 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
             </div>
 
             <div className="exam-card p-5">
-              <h3 className="text-sm font-bold text-[var(--exam-text)] flex items-center gap-1.5 mb-3">
-                <Clock size={15} /> Speed Breakdown
+              <h3 className="font-pixel text-xs text-[var(--exam-text)] flex items-center gap-1.5 mb-3">
+                <PixelIcon name="timer" size={14} /> SPEED MATRIX
               </h3>
               <div className="space-y-1.5 text-xs font-code tabular-nums">
                 <div className="flex justify-between">
@@ -414,29 +449,31 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
 
           {/* My Quiz History Table */}
           <div className="exam-card p-5">
-            <h2 className="text-base font-bold text-[var(--exam-text)] mb-4">My Quiz History</h2>
+            <h2 className="font-pixel text-xs sm:text-sm text-[var(--exam-text)] mb-4">
+              MY QUIZ HISTORY
+            </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm tabular-nums">
                 <thead>
-                  <tr className="border-b border-[var(--exam-border)] text-[var(--exam-text-muted)]">
-                    <th className="py-2 pr-4">Date</th>
-                    <th className="py-2 pr-4">Mode</th>
-                    <th className="py-2 pr-4">Subject</th>
-                    <th className="py-2 pr-4 text-right">Score</th>
-                    <th className="py-2 pr-4 text-right">Accuracy</th>
-                    <th className="py-2 text-right">Action</th>
+                  <tr className="border-b-3 border-[var(--exam-border)] font-display-pixel text-xs text-[var(--exam-text-muted)]">
+                    <th className="py-2 pr-4">DATE</th>
+                    <th className="py-2 pr-4">MODE</th>
+                    <th className="py-2 pr-4">SUBJECT</th>
+                    <th className="py-2 pr-4 text-right">SCORE</th>
+                    <th className="py-2 pr-4 text-right">ACC</th>
+                    <th className="py-2 text-right">ACTION</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.recentAttempts.map((a) => (
                     <tr
                       key={a.attemptId}
-                      className="border-b border-[var(--exam-border)] last:border-0 hover:bg-[var(--exam-surface-alt)]"
+                      className="border-b-2 border-[var(--exam-border)] last:border-0 hover:bg-[var(--exam-surface-alt)]"
                     >
                       <td className="py-2.5 pr-4 font-code text-xs text-[var(--exam-text-muted)]">
                         {a.createdAt.slice(0, 10)}
                       </td>
-                      <td className="py-2.5 pr-4 uppercase font-semibold text-[var(--exam-accent)]">
+                      <td className="py-2.5 pr-4 uppercase font-display-pixel font-bold text-[var(--exam-accent)]">
                         {a.mode}
                       </td>
                       <td className="py-2.5 pr-4 text-[var(--exam-text)]">
@@ -452,9 +489,9 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onStartQuiz }) => 
                         <button
                           type="button"
                           onClick={() => void openHistoryAttempt(a.attemptId)}
-                          className="text-xs font-semibold text-[var(--exam-accent)] hover:underline cursor-pointer"
+                          className="font-display-pixel text-xs font-bold text-[var(--exam-accent)] hover:underline cursor-pointer"
                         >
-                          View Analysis
+                          View →
                         </button>
                       </td>
                     </tr>

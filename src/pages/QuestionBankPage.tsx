@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { EXAM_CATEGORIES } from '../../shared/categories.ts';
 import type { ExamQuestion, ExamSettings } from '../../shared/types.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import { readOfflineCache, updateOfflineCache } from '../utils/storageMigration.ts';
 import { formatAnswerLabel } from '../components/quiz/SmartExplanationCard.tsx';
 import { PixelIcon, PixelIllustration, PixelLoader } from '../components/pixel/PixelArtAssets.tsx';
@@ -33,12 +34,11 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
   }, [setMusicMode]);
 
   useEffect(() => {
-    fetch('/api/exam/categories')
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.subjects)) setSubjects(d.subjects);
-      })
-      .catch(() => {});
+    void safeFetchJson<{ subjects?: string[] }>('/api/exam/categories').then((res) => {
+      if (res.ok && res.data && Array.isArray(res.data.subjects)) {
+        setSubjects(res.data.subjects);
+      }
+    });
   }, []);
 
   const loadQuestions = useCallback(async () => {
@@ -63,13 +63,16 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
         page: String(page),
         limit: '15',
       });
-      const res = await fetch(`/api/exam/questions?${qs.toString()}`);
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.items)) {
-        setItems(data.items);
-        setTotal(data.total ?? data.items.length);
-        setTotalPages(data.totalPages ?? 1);
-        updateOfflineCache({ questions: data.items });
+      const res = await safeFetchJson<{
+        items?: ExamQuestion[];
+        total?: number;
+        totalPages?: number;
+      }>(`/api/exam/questions?${qs.toString()}`);
+      if (res.ok && res.data && Array.isArray(res.data.items)) {
+        setItems(res.data.items);
+        setTotal(res.data.total ?? res.data.items.length);
+        setTotalPages(res.data.totalPages ?? 1);
+        updateOfflineCache({ questions: res.data.items });
       }
     } catch (err) {
       reportError(String(err));

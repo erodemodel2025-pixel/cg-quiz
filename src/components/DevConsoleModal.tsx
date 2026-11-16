@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Bug, Music, RefreshCw, ShieldAlert, Trash2, Volume2, X } from 'lucide-react';
 import { arcadeAudio, type MusicMode, type SfxName } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import type { EngineeringQuestion, GameModeId } from '../../shared/types.ts';
 
 interface DevConsoleModalProps {
@@ -50,13 +51,16 @@ export const DevConsoleModal: React.FC<DevConsoleModalProps> = ({
   const loadDiagnostics = useCallback(async () => {
     try {
       const [dRes, qRes] = await Promise.all([
-        fetch('/api/dev/diagnostics', { headers: { 'x-cgquiz-dev': DEV_TOKEN } }),
-        fetch('/api/dev/questions', { headers: { 'x-cgquiz-dev': DEV_TOKEN } }),
+        safeFetchJson<NonNullable<typeof diag>>('/api/dev/diagnostics', {
+          headers: { 'x-cgquiz-dev': DEV_TOKEN },
+        }),
+        safeFetchJson<{ questions?: EngineeringQuestion[] }>('/api/dev/questions', {
+          headers: { 'x-cgquiz-dev': DEV_TOKEN },
+        }),
       ]);
-      if (dRes.ok) setDiag(await dRes.json());
-      if (qRes.ok) {
-        const qd = await qRes.json();
-        setQuestions(qd.questions || []);
+      if (dRes.ok && dRes.data) setDiag(dRes.data);
+      if (qRes.ok && qRes.data) {
+        setQuestions(qRes.data.questions || []);
       }
     } catch (err) {
       reportError(String(err));
@@ -78,27 +82,28 @@ export const DevConsoleModal: React.FC<DevConsoleModalProps> = ({
       setLogMsg(`Registration test failed: ${reg.error}`);
       return;
     }
-    const startRes = await fetch('/api/quiz/start', {
+    const startRes = await safeFetchJson<{ sessionId?: string }>('/api/quiz/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: 'competitive', gameType: 'iq-quiz', playerId: reg ? undefined : null, isTest: true }),
     });
-    const startData = await startRes.json();
     setLogMsg(
-      `Created sandbox test player ${handle}; quiz session ${startData.sessionId || 'error'} verified.`
+      `Created sandbox test player ${handle}; quiz session ${startRes.data?.sessionId || 'error'} verified.`
     );
     await loadDiagnostics();
   };
 
   const resetTestDataOnly = async () => {
-    const res = await fetch('/api/dev/reset-test', {
+    const res = await safeFetchJson<{
+      cleared?: { testPlayers?: number; testSubmissions?: number };
+    }>('/api/dev/reset-test', {
       method: 'POST',
       headers: { 'x-cgquiz-dev': DEV_TOKEN },
     });
-    const data = await res.json();
+    const data = res.data;
     setLogMsg(
-      `Reset test data ONLY: ${data.cleared?.testPlayers ?? 0} test players, ${
-        data.cleared?.testSubmissions ?? 0
+      `Reset test data ONLY: ${data?.cleared?.testPlayers ?? 0} test players, ${
+        data?.cleared?.testSubmissions ?? 0
       } test runs deleted. Real player records untouched!`
     );
     await loadDiagnostics();

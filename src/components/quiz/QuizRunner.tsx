@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { soundManager } from '../../audio/SoundManager.ts';
 import { arcadeAudio } from '../../audio/arcadeAudio.ts';
 import { useArcade } from '../../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../../utils/apiClient.ts';
 import {
   saveActiveQuizDraft,
   updateOfflineCache,
@@ -112,7 +113,13 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
         throw new Error('You are currently offline and no cached questions are available.');
       }
 
-      const res = await fetch('/api/exam/start', {
+      const res = await safeFetchJson<{
+        sessionId: string;
+        questions: PublicExamQuestion[];
+        timeLimitSeconds?: number;
+        adaptiveState?: { currentDifficulty?: ExamDifficulty };
+        error?: string;
+      }>('/api/exam/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -122,11 +129,11 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
           questionIds: customQuestionIds,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Could not start quiz session.');
+      if (!res.ok || !res.data || !Array.isArray(res.data.questions)) {
+        throw new Error(res.error || 'Could not start quiz session.');
       }
 
+      const data = res.data;
       soundManager.playGameStart();
       setSessionId(data.sessionId);
       setQuestions(data.questions);
@@ -202,7 +209,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
       }));
 
       try {
-        const res = await fetch('/api/exam/submit', {
+        const res = await safeFetchJson<ExamResultSummary & { error?: string }>('/api/exam/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -213,11 +220,11 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
             antiCheat: { tabSwitches, fullscreenExits },
           }),
         });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Submission failed.');
+        if (!res.ok || !res.data) {
+          throw new Error(res.error || 'Submission failed.');
         }
 
+        const data = res.data;
         saveActiveQuizDraft(null);
         const cache = readOfflineCache();
         updateOfflineCache({
@@ -312,7 +319,13 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
 
     const updatedTimes = recordQuestionTime();
     try {
-      const res = await fetch('/api/exam/check-answer', {
+      const res = await safeFetchJson<{
+        correct: boolean;
+        correctAnswer: number | number[] | string;
+        explanation: SmartExplanation;
+        adaptiveState?: { currentDifficulty?: ExamDifficulty };
+        error?: string;
+      }>('/api/exam/check-answer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -321,12 +334,12 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
           userAnswer: userAns,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        reportError(data.error || 'Answer check failed');
+      if (!res.ok || !res.data) {
+        reportError(res.error || 'Answer check failed');
         return;
       }
 
+      const data = res.data;
       setCheckedFeedback((prev) => ({
         ...prev,
         [currentQ.id]: {

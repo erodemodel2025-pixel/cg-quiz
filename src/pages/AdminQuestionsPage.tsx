@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, Edit3, Plus, ShieldCheck, Trash2, X } from 'lucide-react';
 import { EXAM_CATEGORIES } from '../../shared/categories.ts';
 import type { ExamDifficulty, ExamQuestion, QuestionType } from '../../shared/types.ts';
+import { safeFetchJson } from '../utils/apiClient.ts';
 
 const DEV_TOKEN = 'arcade-matrix-dev';
 
@@ -61,12 +62,11 @@ export const AdminQuestionsPage: React.FC<{ onBack: () => void }> = ({ onBack })
   const [saving, setSaving] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const res = await fetch('/api/admin/questions', {
+    const res = await safeFetchJson<{ questions?: ExamQuestion[] }>('/api/admin/questions', {
       headers: { 'x-cgquiz-dev': DEV_TOKEN },
     });
-    if (res.ok) {
-      const d = await res.json();
-      setQuestions(d.questions || []);
+    if (res.ok && res.data) {
+      setQuestions(res.data.questions || []);
     }
   }, []);
 
@@ -151,7 +151,7 @@ export const AdminQuestionsPage: React.FC<{ onBack: () => void }> = ({ onBack })
         ? `/api/admin/questions/${encodeURIComponent(form.id)}`
         : '/api/admin/questions';
       const method = form.id ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await safeFetchJson<{ question?: ExamQuestion; error?: string }>(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -159,12 +159,11 @@ export const AdminQuestionsPage: React.FC<{ onBack: () => void }> = ({ onBack })
         },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Validation failed.');
+      if (!res.ok || !res.data?.question) {
+        setErrorMsg(res.error || 'Validation failed.');
         return;
       }
-      setStatusMsg(`Saved question "${data.question.id}" successfully.`);
+      setStatusMsg(`Saved question "${res.data.question.id}" successfully.`);
       setFormOpen(false);
       setForm(EMPTY_FORM);
       await loadAll();

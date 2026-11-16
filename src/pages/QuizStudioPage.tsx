@@ -9,6 +9,7 @@ import type {
   QuestionType,
 } from '../../shared/types.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import { PixelIcon, type PixelIconName } from '../components/pixel/PixelArtAssets.tsx';
 
 interface QuizStudioPageProps {
@@ -79,18 +80,20 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
   }, [initialPreset]);
 
   useEffect(() => {
-    fetch('/api/exam/categories')
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.subjects)) setSubjects(d.subjects);
-        if (d.chaptersBySubject) setChaptersBySubject(d.chaptersBySubject);
-      })
-      .catch(() => {});
+    void safeFetchJson<{ subjects?: string[]; chaptersBySubject?: Record<string, string[]> }>(
+      '/api/exam/categories'
+    ).then((res) => {
+      if (res.ok && res.data) {
+        if (Array.isArray(res.data.subjects)) setSubjects(res.data.subjects);
+        if (res.data.chaptersBySubject) setChaptersBySubject(res.data.chaptersBySubject);
+      }
+    });
 
-    fetch(`/api/exam/daily-status?userId=${encodeURIComponent(examUserId)}`)
-      .then((r) => r.json())
-      .then((d) => setDailyStatus(d))
-      .catch(() => {});
+    void safeFetchJson<DailyExamStatus>(
+      `/api/exam/daily-status?userId=${encodeURIComponent(examUserId)}`
+    ).then((res) => {
+      if (res.ok && res.data) setDailyStatus(res.data);
+    });
   }, [examUserId]);
 
   const handleSelectMode = (nextMode: ExamMode) => {

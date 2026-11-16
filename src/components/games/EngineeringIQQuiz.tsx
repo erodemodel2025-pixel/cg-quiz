@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Flame, RotateCcw, ShieldCheck, Timer, Trophy, XCircle } from 'lucide-react';
 import { soundManager } from '../../audio/SoundManager.ts';
 import { useArcade } from '../../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../../utils/apiClient.ts';
 import { ENGINEERING_CATEGORIES } from '../../../shared/categories.ts';
 import type { AnswerDetail, Difficulty, PublicQuestion, QuizMode } from '../../../shared/types.ts';
 
@@ -85,7 +86,12 @@ export const EngineeringIQQuiz: React.FC<EngineeringIQQuizProps> = ({
     setLoading(true);
     submittedRef.current = false;
     try {
-      const res = await fetch('/api/quiz/start', {
+      const res = await safeFetchJson<{
+        sessionId: string;
+        questions: PublicQuestion[];
+        timeLimitSeconds?: number;
+        error?: string;
+      }>('/api/quiz/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -96,13 +102,13 @@ export const EngineeringIQQuiz: React.FC<EngineeringIQQuizProps> = ({
           playerId: player?.id ?? null,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        reportError(data.error || 'Failed to start quiz');
+      if (!res.ok || !res.data || !Array.isArray(res.data.questions)) {
+        reportError(res.error || 'Failed to start quiz');
         setLoading(false);
         return;
       }
 
+      const data = res.data;
       soundManager.playGameStart();
       setSessionId(data.sessionId);
       setQuestions(data.questions);
@@ -129,12 +135,21 @@ export const EngineeringIQQuiz: React.FC<EngineeringIQQuizProps> = ({
     setSelected(optIdx);
 
     try {
-      const res = await fetch('/api/quiz/check', {
+      const res = await safeFetchJson<{
+        correct: boolean;
+        correctIndex: number;
+        explanation: string;
+        reference: string;
+      }>('/api/quiz/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, questionId: q.id, selectedIndex: optIdx }),
       });
-      const data = await res.json();
+      if (!res.ok || !res.data) {
+        reportError(res.error || 'Failed to verify answer');
+        return;
+      }
+      const data = res.data;
       setFeedback(data);
 
       const nextAnswers = [...answers, { questionId: q.id, selectedIndex: optIdx, timeMs }];
@@ -163,7 +178,19 @@ export const EngineeringIQQuiz: React.FC<EngineeringIQQuizProps> = ({
     submittedRef.current = true;
     setLoading(true);
     try {
-      const res = await fetch('/api/quiz/submit', {
+      const res = await safeFetchJson<{
+        score: number;
+        accuracy: number;
+        correctCount: number;
+        totalQuestions: number;
+        timeSpentSeconds: number;
+        maxStreak: number;
+        xpEarned: number;
+        leveledUp?: boolean;
+        dailyCompletedNow?: boolean;
+        details: AnswerDetail[];
+        player?: NonNullable<typeof player>;
+      }>('/api/quiz/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -172,11 +199,11 @@ export const EngineeringIQQuiz: React.FC<EngineeringIQQuizProps> = ({
           answers: finalAnswers,
         }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      if (res.ok && res.data) {
+        const data = res.data;
         setResult(data);
         if (data.player) updateLocalPlayer(data.player);
-        if (data.leveledUp) {
+        if (data.leveledUp && data.player) {
           soundManager.playLevelUp();
           triggerCelebration('LEVEL UP!', `Reached Level ${data.player.level}: ${data.player.title}`, '#22FF66');
         } else {

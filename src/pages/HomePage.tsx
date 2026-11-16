@@ -3,6 +3,7 @@ import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
 import { computeExamLevel } from '../../shared/progression.ts';
 import type { AnalyticsSummary, ExamSettings } from '../../shared/types.ts';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import { loadActiveQuizDraft, type ActiveQuizDraft } from '../utils/storageMigration.ts';
 import {
   PixelIcon,
@@ -73,12 +74,11 @@ export const HomePage: React.FC<HomePageProps> = ({
   }, [setMusicMode]);
 
   useEffect(() => {
-    fetch(`/api/exam/analytics?userId=${encodeURIComponent(examUserId)}&range=7d`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d) setAnalytics(d);
-      })
-      .catch(() => {});
+    void safeFetchJson<AnalyticsSummary>(
+      `/api/exam/analytics?userId=${encodeURIComponent(examUserId)}&range=7d`
+    ).then((res) => {
+      if (res.ok && res.data) setAnalytics(res.data);
+    });
   }, [examUserId]);
 
   const levelInfo = computeExamLevel(analytics?.streaks.examXp ?? 0);

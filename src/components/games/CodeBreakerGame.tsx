@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Code2, Flame, RotateCcw, XCircle } from 'lucide-react';
 import { soundManager } from '../../audio/SoundManager.ts';
 import { useArcade } from '../../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../../utils/apiClient.ts';
 import type { CodePuzzle } from '../../../shared/minigameData.ts';
 
 interface CodeBreakerGameProps {
@@ -35,15 +36,19 @@ export const CodeBreakerGame: React.FC<CodeBreakerGameProps> = ({ onExit }) => {
 
   const startSession = useCallback(async () => {
     try {
-      const res = await fetch('/api/minigame/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameType: 'code-breaker', playerId: player?.id ?? null }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.items)) {
+      const res = await safeFetchJson<{ sessionId: string; items: PublicCodePuzzle[] }>(
+        '/api/minigame/start',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameType: 'code-breaker', playerId: player?.id ?? null }),
+        }
+      );
+      const items = res.data?.items;
+      if (res.ok && res.data && Array.isArray(items)) {
+        const data = res.data;
         setSessionId(data.sessionId);
-        setPuzzles(data.items);
+        setPuzzles(items);
         setIdx(0);
         setAnswers([]);
         setPicked(null);
@@ -71,7 +76,15 @@ export const CodeBreakerGame: React.FC<CodeBreakerGameProps> = ({ onExit }) => {
 
   const submitAll = async (finalAnswers: Array<{ id: string; selectedIndex: number }>) => {
     try {
-      const res = await fetch('/api/minigame/submit', {
+      const res = await safeFetchJson<{
+        score: number;
+        correctCount: number;
+        totalQuestions: number;
+        xpEarned: number;
+        leveledUp?: boolean;
+        player?: NonNullable<typeof player>;
+        details: Array<{ id: string; title: string; correct: boolean; explanation: string }>;
+      }>('/api/minigame/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,11 +93,11 @@ export const CodeBreakerGame: React.FC<CodeBreakerGameProps> = ({ onExit }) => {
           answers: finalAnswers,
         }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      if (res.ok && res.data) {
+        const data = res.data;
         setResult(data);
         if (data.player) updateLocalPlayer(data.player);
-        if (data.leveledUp) {
+        if (data.leveledUp && data.player) {
           soundManager.playLevelUp();
           triggerCelebration('LEVEL UP!', `Code Rank Unlocked: ${data.player.title}`, '#22FF66');
         } else if (data.correctCount >= 3) {
@@ -109,12 +122,20 @@ export const CodeBreakerGame: React.FC<CodeBreakerGameProps> = ({ onExit }) => {
     setAnswers(nextAnswers);
 
     try {
-      const res = await fetch('/api/minigame/check', {
+      const res = await safeFetchJson<{
+        correct: boolean;
+        correctIndex: number;
+        explanation: string;
+      }>('/api/minigame/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, itemId: current.id, selectedIndex: optIdx }),
       });
-      const check = await res.json();
+      if (!res.ok || !res.data) {
+        reportError(res.error || 'Answer check failed');
+        return;
+      }
+      const check = res.data;
       setFeedback(check);
       if (check.correct) {
         const nextStreak = streak + 1;

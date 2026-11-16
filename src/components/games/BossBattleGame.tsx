@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Flame, Heart, RotateCcw, Shield, Skull, Swords, Zap } from 'lucide-react';
 import { soundManager } from '../../audio/SoundManager.ts';
 import { useArcade } from '../../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../../utils/apiClient.ts';
 import { FUNNY_GAME_OVER_MESSAGES } from '../../../shared/progression.ts';
 import type { PublicQuestion } from '../../../shared/types.ts';
 
@@ -36,19 +37,22 @@ export const BossBattleGame: React.FC<BossBattleGameProps> = ({ onExit }) => {
 
   const startBossFight = useCallback(async () => {
     try {
-      const res = await fetch('/api/quiz/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'practice',
-          gameType: 'boss-battle',
-          categoryId: 'all',
-          difficulty: 'MIXED',
-          playerId: player?.id ?? null,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.questions)) {
+      const res = await safeFetchJson<{ sessionId: string; questions: PublicQuestion[] }>(
+        '/api/quiz/start',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'practice',
+            gameType: 'boss-battle',
+            categoryId: 'all',
+            difficulty: 'MIXED',
+            playerId: player?.id ?? null,
+          }),
+        }
+      );
+      if (res.ok && res.data && Array.isArray(res.data.questions)) {
+        const data = res.data;
         setSessionId(data.sessionId);
         setQuestions(data.questions);
         setIdx(0);
@@ -97,7 +101,13 @@ export const BossBattleGame: React.FC<BossBattleGameProps> = ({ onExit }) => {
     }
 
     try {
-      const res = await fetch('/api/quiz/submit', {
+      const res = await safeFetchJson<{
+        score: number;
+        xpEarned: number;
+        correctCount: number;
+        leveledUp?: boolean;
+        player?: NonNullable<typeof player>;
+      }>('/api/quiz/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,15 +117,15 @@ export const BossBattleGame: React.FC<BossBattleGameProps> = ({ onExit }) => {
           bossWon: outcome === 'victory',
         }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      if (res.ok && res.data) {
+        const data = res.data;
         setResult({
           score: data.score,
           xpEarned: data.xpEarned,
           correctCount: data.correctCount,
         });
         if (data.player) updateLocalPlayer(data.player);
-        if (data.leveledUp) {
+        if (data.leveledUp && data.player) {
           soundManager.playLevelUp();
           triggerCelebration('BOSS LEVEL UP!', `Level ${data.player.level}: ${data.player.title}`, '#FFE600');
         }
@@ -135,12 +145,20 @@ export const BossBattleGame: React.FC<BossBattleGameProps> = ({ onExit }) => {
     setAnswers(nextAnswers);
 
     try {
-      const res = await fetch('/api/quiz/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, questionId: q.id, selectedIndex: optIdx }),
-      });
-      const check = await res.json();
+      const res = await safeFetchJson<{ correct: boolean; correctIndex: number; explanation: string }>(
+        '/api/quiz/check',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, questionId: q.id, selectedIndex: optIdx }),
+        }
+      );
+      if (!res.ok || !res.data) {
+        setLocked(false);
+        reportError(res.error || 'Answer check failed');
+        return;
+      }
+      const check = res.data;
 
       let nextBossHp = bossHp;
       let nextEnergy = playerEnergy;

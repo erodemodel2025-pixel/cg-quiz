@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle2, RotateCcw, Zap } from 'lucide-react';
 import { soundManager } from '../../audio/SoundManager.ts';
 import { useArcade } from '../../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../../utils/apiClient.ts';
 import type { CircuitStageDef, CircuitTileDef } from '../../../shared/minigameData.ts';
 
 interface CircuitRushGameProps {
@@ -104,21 +105,25 @@ export const CircuitRushGame: React.FC<CircuitRushGameProps> = ({ onExit }) => {
 
   const startGame = useCallback(async () => {
     try {
-      const res = await fetch('/api/minigame/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameType: 'circuit-rush', playerId: player?.id ?? null }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.items) && data.items.length > 0) {
+      const res = await safeFetchJson<{ sessionId: string; items: CircuitStageDef[] }>(
+        '/api/minigame/start',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameType: 'circuit-rush', playerId: player?.id ?? null }),
+        }
+      );
+      const items = res.data?.items;
+      if (res.ok && res.data && Array.isArray(items) && items.length > 0) {
+        const data = res.data;
         setSessionId(data.sessionId);
-        setStages(data.items);
+        setStages(items);
         setStageIdx(0);
         setMoves(0);
         setElapsed(0);
         setFinished(false);
         setFinalResult(null);
-        loadStageRotations(data.items[0]);
+        loadStageRotations(items[0]);
         soundManager.playGameStart();
       }
     } catch (err) {
@@ -182,7 +187,12 @@ export const CircuitRushGame: React.FC<CircuitRushGameProps> = ({ onExit }) => {
 
     // All stages cleared -> validate & save server-side
     try {
-      const res = await fetch('/api/minigame/submit', {
+      const res = await safeFetchJson<{
+        score: number;
+        xpEarned: number;
+        leveledUp?: boolean;
+        player?: NonNullable<typeof player>;
+      }>('/api/minigame/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,11 +202,11 @@ export const CircuitRushGame: React.FC<CircuitRushGameProps> = ({ onExit }) => {
           moves,
         }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      if (res.ok && res.data) {
+        const data = res.data;
         setFinalResult({ score: data.score, xpEarned: data.xpEarned });
         if (data.player) updateLocalPlayer(data.player);
-        if (data.leveledUp) {
+        if (data.leveledUp && data.player) {
           soundManager.playLevelUp();
           triggerCelebration('LEVEL UP!', `Level ${data.player.level} reached!`, '#22FF66');
         } else {

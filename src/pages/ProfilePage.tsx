@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Award, Check, Flame, Lock, Palette, Trophy, UserPlus } from 'lucide-react';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import {
   ACHIEVEMENTS,
   computeLevelFromXp,
@@ -27,12 +28,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenRegister, onPlay
   useEffect(() => {
     if (!player) return;
     setLoadingHistory(true);
-    fetch(`/api/players/${encodeURIComponent(player.id)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.history)) setHistory(d.history);
+    void safeFetchJson<{ history?: SubmissionRecord[] }>(
+      `/api/players/${encodeURIComponent(player.id)}`
+    )
+      .then((res) => {
+        if (res.ok && res.data && Array.isArray(res.data.history)) {
+          setHistory(res.data.history);
+        } else if (!res.ok && res.error) {
+          reportError(res.error);
+        }
       })
-      .catch((err) => reportError(String(err)))
       .finally(() => setLoadingHistory(false));
   }, [player, reportError]);
 

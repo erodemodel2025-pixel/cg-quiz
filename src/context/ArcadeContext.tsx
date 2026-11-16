@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { arcadeAudio, type MusicMode } from '../audio/arcadeAudio.ts';
 import type { ClassOption, PixelThemeId, PlayerProfile, UiThemeMode } from '../../shared/types.ts';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import {
   getOrCreateGuestUserId,
   readOfflineCache,
@@ -157,9 +158,11 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const storedPlayerRaw = localStorage.getItem(PLAYER_STORAGE_KEY);
         if (storedPlayerRaw) {
           const parsed = JSON.parse(storedPlayerRaw) as PlayerProfile;
-          const res = await fetch(`/api/players/${encodeURIComponent(parsed.id)}`);
-          if (res.ok) {
-            const data = (await res.json()) as { player: PlayerProfile };
+          const res = await safeFetchJson<{ player: PlayerProfile }>(
+            `/api/players/${encodeURIComponent(parsed.id)}`
+          );
+          if (res.ok && res.data?.player) {
+            const data = res.data;
             if (active) {
               setPlayer(data.player);
               setActiveTheme(data.player.activeTheme || 'cyber-midnight');
@@ -178,7 +181,7 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             className?: ClassOption;
           };
           if (legacy.name && legacy.className) {
-            const res = await fetch('/api/players/register', {
+            const res = await safeFetchJson<{ player: PlayerProfile }>('/api/players/register', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -187,8 +190,8 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 existingId: legacy.id,
               }),
             });
-            if (res.ok) {
-              const data = (await res.json()) as { player: PlayerProfile };
+            if (res.ok && res.data?.player) {
+              const data = res.data;
               if (active) {
                 setPlayer(data.player);
                 setActiveTheme(data.player.activeTheme || 'cyber-midnight');
@@ -211,15 +214,14 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Sync bookmarks from server when online
   useEffect(() => {
     if (!examUserId || !isOnline) return;
-    fetch(`/api/exam/bookmarks?userId=${encodeURIComponent(examUserId)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d && Array.isArray(d.questionIds)) {
-          setBookmarkedIds(d.questionIds);
-          updateOfflineCache({ bookmarks: d.questionIds });
-        }
-      })
-      .catch(() => {});
+    void safeFetchJson<{ questionIds?: string[] }>(
+      `/api/exam/bookmarks?userId=${encodeURIComponent(examUserId)}`
+    ).then((res) => {
+      if (res.ok && res.data && Array.isArray(res.data.questionIds)) {
+        setBookmarkedIds(res.data.questionIds);
+        updateOfflineCache({ bookmarks: res.data.questionIds });
+      }
+    });
   }, [examUserId, isOnline]);
 
   const toggleBookmark = useCallback(
@@ -271,10 +273,11 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refreshPlayer = useCallback(async () => {
     if (!player) return;
     try {
-      const res = await fetch(`/api/players/${encodeURIComponent(player.id)}`);
-      if (res.ok) {
-        const data = (await res.json()) as { player: PlayerProfile };
-        updateLocalPlayer(data.player);
+      const res = await safeFetchJson<{ player: PlayerProfile }>(
+        `/api/players/${encodeURIComponent(player.id)}`
+      );
+      if (res.ok && res.data?.player) {
+        updateLocalPlayer(res.data.player);
       }
     } catch (err) {
       reportError(String(err));
@@ -284,19 +287,25 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const registerPlayer = useCallback(
     async (name: string, className: ClassOption, isTest = false) => {
       try {
-        const res = await fetch('/api/players/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, className, isTest }),
-        });
-        const data = (await res.json()) as { player?: PlayerProfile; error?: string };
-        if (!res.ok || !data.player) {
+        const res = await safeFetchJson<{ player?: PlayerProfile; error?: string }>(
+          '/api/players/register',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, className, isTest }),
+          }
+        );
+        if (!res.ok || !res.data?.player) {
           arcadeAudio.playSfx('wrong');
-          return { ok: false, error: data.error || 'Registration failed.' };
+          return { ok: false, error: res.error || res.data?.error || 'Registration failed.' };
         }
         arcadeAudio.playSfx('coin');
-        updateLocalPlayer(data.player);
-        triggerCelebration('PLAYER REGISTERED', `${data.player.name} (${data.player.className})`, '#00F0FF');
+        updateLocalPlayer(res.data.player);
+        triggerCelebration(
+          'PLAYER REGISTERED',
+          `${res.data.player.name} (${res.data.player.className})`,
+          '#00F0FF'
+        );
         return { ok: true };
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Network error';
@@ -315,14 +324,16 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
       try {
-        const res = await fetch(`/api/players/${encodeURIComponent(player.id)}/theme`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ themeId }),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as { player: PlayerProfile };
-          updateLocalPlayer(data.player);
+        const res = await safeFetchJson<{ player: PlayerProfile }>(
+          `/api/players/${encodeURIComponent(player.id)}/theme`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ themeId }),
+          }
+        );
+        if (res.ok && res.data?.player) {
+          updateLocalPlayer(res.data.player);
           arcadeAudio.playSfx('coin');
         }
       } catch (err) {
@@ -341,17 +352,17 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       if (player.achievements.includes(achievementId)) return;
       try {
-        const res = await fetch(`/api/players/${encodeURIComponent(player.id)}/achievement`, {
+        const res = await safeFetchJson<{
+          player: PlayerProfile;
+          newlyUnlocked: boolean;
+          xpBonus?: number;
+        }>(`/api/players/${encodeURIComponent(player.id)}/achievement`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ achievementId }),
         });
-        if (res.ok) {
-          const data = (await res.json()) as {
-            player: PlayerProfile;
-            newlyUnlocked: boolean;
-            xpBonus?: number;
-          };
+        if (res.ok && res.data) {
+          const data = res.data;
           if (data.newlyUnlocked) {
             updateLocalPlayer(data.player);
             arcadeAudio.playSfx('levelUp');

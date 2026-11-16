@@ -642,6 +642,10 @@ export function registerExamRoutes(app: Express): void {
         selected.sort((a, b) => order[a.difficulty] - order[b.difficulty]);
       }
 
+      if (selected.length === 0) {
+        selected = shuffle(all).slice(0, Math.min(targetCount, all.length));
+      }
+
       const defaultMinutes =
         mode === 'rapid'
           ? 2

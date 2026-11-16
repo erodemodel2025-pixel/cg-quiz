@@ -1215,6 +1215,37 @@ async function startServer() {
   // Mount v2 Competitive Quiz Platform & Analytics API Routes
   registerExamRoutes(app);
 
+  // Never let unmatched /api/* fall through to Vite HTML fallback
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'API endpoint not found.' });
+  });
+
+  // Always return JSON for Express/body-parser errors on API routes
+  app.use(
+    (
+      err: unknown,
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      if (res.headersSent) {
+        next(err);
+        return;
+      }
+      const msg = err instanceof Error ? err.message : 'Unexpected server error.';
+      if (req.path.startsWith('/api')) {
+        const status =
+          typeof (err as { status?: number })?.status === 'number'
+            ? (err as { status: number }).status
+            : 500;
+        logServerError(req.path, msg);
+        res.status(status).json({ error: msg });
+        return;
+      }
+      next(err);
+    }
+  );
+
   // Vite dev middleware OR static production build
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

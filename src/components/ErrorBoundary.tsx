@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Home, RotateCcw } from 'lucide-react';
+import { PixelIllustration } from './pixel/PixelArtAssets.tsx';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -28,22 +28,20 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (this.state.hasError) {
       return (
-        <div className="max-w-lg mx-auto my-12 px-4">
-          <div className="exam-card p-6 sm:p-8 text-center">
-            <AlertCircle size={36} className="mx-auto text-[var(--exam-danger)] mb-3" />
-            <h2 className="text-lg font-bold text-[var(--exam-text)] mb-2">
-              Something went wrong while loading this quiz.
-            </h2>
-            <p className="text-sm text-[var(--exam-text-secondary)] mb-6">
-              Your progress and saved data are safe. You can retry loading this view or return home.
+        <div className="max-w-md mx-auto my-12 px-4">
+          <div className="exam-card p-6 sm:p-8 text-center space-y-4">
+            <PixelIllustration name="oops" size={58} className="mx-auto" />
+            <h2 className="font-pixel text-sm text-[var(--exam-text)]">OOPS!</h2>
+            <p className="text-sm text-[var(--exam-text-secondary)]">
+              Something went wrong while loading this view. Your progress and saved data are safe.
             </p>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => this.setState({ hasError: false })}
                 className="exam-btn exam-btn-primary text-sm"
               >
-                <RotateCcw size={16} /> Retry
+                TRY AGAIN
               </button>
               <button
                 type="button"
@@ -53,7 +51,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 }}
                 className="exam-btn exam-btn-secondary text-sm"
               >
-                <Home size={16} /> Go Home
+                Home
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Cpu, RotateCcw } from 'lucide-react';
 import { soundManager } from '../../audio/SoundManager.ts';
 import { useArcade } from '../../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../../utils/apiClient.ts';
 import type { ComponentCardDef } from '../../../shared/minigameData.ts';
 
 interface ComponentMatchGameProps {
@@ -62,15 +63,19 @@ export const ComponentMatchGame: React.FC<ComponentMatchGameProps> = ({ onExit }
 
   const startGame = useCallback(async () => {
     try {
-      const res = await fetch('/api/minigame/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameType: 'component-match', playerId: player?.id ?? null }),
-      });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.items)) {
+      const res = await safeFetchJson<{ sessionId: string; items: ComponentCardDef[] }>(
+        '/api/minigame/start',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameType: 'component-match', playerId: player?.id ?? null }),
+        }
+      );
+      const items = res.data?.items;
+      if (res.ok && res.data && Array.isArray(items)) {
         // Use 6 pairs (12 cards) for brisk, readable 4x3 grid on desktop and mobile
-        const subset = (data.items as ComponentCardDef[]).slice(0, 6);
+        const data = res.data;
+        const subset = items.slice(0, 6);
         setSessionId(data.sessionId);
         setCatalog(subset);
         setTiles(buildDeck(subset));
@@ -109,7 +114,12 @@ export const ComponentMatchGame: React.FC<ComponentMatchGameProps> = ({ onExit }
 
   const submitMatchRun = async (finalBestStreak: number, finalMistakes: number) => {
     try {
-      const res = await fetch('/api/minigame/submit', {
+      const res = await safeFetchJson<{
+        score: number;
+        xpEarned: number;
+        leveledUp?: boolean;
+        player?: NonNullable<typeof player>;
+      }>('/api/minigame/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,11 +130,11 @@ export const ComponentMatchGame: React.FC<ComponentMatchGameProps> = ({ onExit }
           bestStreak: finalBestStreak,
         }),
       });
-      const data = await res.json();
-      if (res.ok) {
+      if (res.ok && res.data) {
+        const data = res.data;
         setResult({ score: data.score, xpEarned: data.xpEarned });
         if (data.player) updateLocalPlayer(data.player);
-        if (data.leveledUp) {
+        if (data.leveledUp && data.player) {
           soundManager.playLevelUp();
           triggerCelebration('LEVEL UP!', `Level ${data.player.level} reached!`, '#00F0FF');
         } else {

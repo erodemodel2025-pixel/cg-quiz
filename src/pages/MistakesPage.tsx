@@ -6,6 +6,7 @@ import type {
   MistakeRecord,
 } from '../../shared/types.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import { readOfflineCache, updateOfflineCache } from '../utils/storageMigration.ts';
 import { formatAnswerLabel } from '../components/quiz/SmartExplanationCard.tsx';
 import { PixelIcon, PixelIllustration, PixelLoader } from '../components/pixel/PixelArtAssets.tsx';
@@ -46,17 +47,19 @@ export const MistakesPage: React.FC<MistakesPageProps> = ({ onStartRevision }) =
       }
 
       const [mRes, bRes] = await Promise.all([
-        fetch(`/api/exam/mistakes?userId=${encodeURIComponent(examUserId)}`),
-        fetch(`/api/exam/bookmarks?userId=${encodeURIComponent(examUserId)}`),
+        safeFetchJson<{ mistakes?: MistakeRecord[] }>(
+          `/api/exam/mistakes?userId=${encodeURIComponent(examUserId)}`
+        ),
+        safeFetchJson<{ items?: ExamQuestion[] }>(
+          `/api/exam/bookmarks?userId=${encodeURIComponent(examUserId)}`
+        ),
       ]);
-      if (mRes.ok) {
-        const md = await mRes.json();
-        setMistakes(md.mistakes || []);
-        updateOfflineCache({ mistakes: md.mistakes || [] });
+      if (mRes.ok && mRes.data) {
+        setMistakes(mRes.data.mistakes || []);
+        updateOfflineCache({ mistakes: mRes.data.mistakes || [] });
       }
-      if (bRes.ok) {
-        const bd = await bRes.json();
-        setSavedItems(bd.items || []);
+      if (bRes.ok && bRes.data) {
+        setSavedItems(bRes.data.items || []);
       }
     } catch (err) {
       reportError(String(err));

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { safeFetchJson } from '../utils/apiClient.ts';
 import {
   CLASS_OPTIONS,
   type ExamLeaderboardRow,
@@ -35,17 +36,19 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
     try {
       if (tab === 'exam') {
         const qs = new URLSearchParams({ period, search });
-        const res = await fetch(`/api/exam/leaderboard?${qs.toString()}`);
-        const data = await res.json();
-        if (res.ok && Array.isArray(data.entries)) {
-          setExamRows(data.entries);
+        const res = await safeFetchJson<{ entries?: ExamLeaderboardRow[] }>(
+          `/api/exam/leaderboard?${qs.toString()}`
+        );
+        if (res.ok && res.data && Array.isArray(res.data.entries)) {
+          setExamRows(res.data.entries);
         }
       } else {
         const qs = new URLSearchParams({ tab, className, search });
-        const res = await fetch(`/api/leaderboard?${qs.toString()}`);
-        const data = await res.json();
-        if (res.ok && Array.isArray(data.entries)) {
-          setArcadeRows(data.entries);
+        const res = await safeFetchJson<{ entries?: LeaderboardEntry[] }>(
+          `/api/leaderboard?${qs.toString()}`
+        );
+        if (res.ok && res.data && Array.isArray(res.data.entries)) {
+          setArcadeRows(res.data.entries);
         }
       }
     } catch (err) {
@@ -63,7 +66,7 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
     e.preventDefault();
     arcadeAudio.playSfx('coin');
     const trimmed = displayNameInput.trim();
-    const res = await fetch('/api/exam/profile/display-name', {
+    const res = await safeFetchJson('/api/exam/profile/display-name', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: examUserId, displayName: trimmed }),
