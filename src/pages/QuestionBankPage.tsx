@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Bookmark, ChevronDown, ChevronUp, Play, Search } from 'lucide-react';
 import { EXAM_CATEGORIES } from '../../shared/categories.ts';
 import type { ExamQuestion, ExamSettings } from '../../shared/types.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
 import { readOfflineCache, updateOfflineCache } from '../utils/storageMigration.ts';
 import { formatAnswerLabel } from '../components/quiz/SmartExplanationCard.tsx';
+import { PixelIcon, PixelIllustration, PixelLoader } from '../components/pixel/PixelArtAssets.tsx';
 
 interface QuestionBankPageProps {
   onPracticeQuestions: (questionIds: string[], settings?: Partial<ExamSettings>) => void;
@@ -83,12 +83,14 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
   }, [loadQuestions]);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-7 sm:py-9 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--exam-text)]">Question Bank</h1>
-          <p className="text-sm text-[var(--exam-text-secondary)]">
-            Search verified questions across subjects, chapters, difficulty, types, and PYQ/Generated sources.
+          <h1 className="font-pixel text-base sm:text-xl text-[var(--exam-text)]">
+            QUESTION BANK
+          </h1>
+          <p className="text-sm text-[var(--exam-text-secondary)] mt-1">
+            Browse verified questions by category, subject, difficulty, or type.
           </p>
         </div>
 
@@ -96,31 +98,25 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
           <button
             type="button"
             onClick={() => onPracticeQuestions(items.slice(0, 10).map((i) => i.id))}
-            className="exam-btn exam-btn-primary text-sm"
+            className="exam-btn exam-btn-primary text-xs sm:text-sm"
           >
-            <Play size={15} fill="currentColor" /> Practice Shown ({Math.min(10, items.length)})
+            <PixelIcon name="play" size={14} /> Practice Shown ({Math.min(10, items.length)})
           </button>
         )}
       </div>
 
       {/* Multi-Filters Bar */}
       <div className="exam-card p-4 space-y-3">
-        <div className="relative">
-          <Search
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--exam-text-muted)]"
-          />
-          <input
-            type="text"
-            value={qText}
-            onChange={(e) => {
-              setQText(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by question text, topic, chapter, or tag..."
-            className="exam-input w-full pl-10 pr-4 py-2.5 text-sm"
-          />
-        </div>
+        <input
+          type="text"
+          value={qText}
+          onChange={(e) => {
+            setQText(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Search question text, topic, chapter, or tag..."
+          className="exam-input w-full px-3.5 py-2.5 text-sm"
+        />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
           <select
@@ -208,20 +204,18 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
         </div>
       </div>
 
-      <div className="text-xs font-medium text-[var(--exam-text-muted)] tabular-nums">
-        Showing {items.length} of {total} verified questions · Page {page} of {totalPages}
+      <div className="font-code text-xs text-[var(--exam-text-muted)] tabular-nums">
+        Showing {items.length} of {total} questions · Page {page} of {totalPages}
       </div>
 
-      {/* Results List */}
       {loading ? (
-        <div className="exam-card p-8 text-center text-sm text-[var(--exam-text-muted)]">
-          Searching question bank...
+        <div className="exam-card p-8">
+          <PixelLoader label="SEARCHING QUESTION BANK..." />
         </div>
       ) : items.length === 0 ? (
         <div className="exam-card p-8 text-center space-y-3">
-          <div className="text-base font-semibold text-[var(--exam-text)]">
-            No matching questions found.
-          </div>
+          <PixelIllustration name="books" size={54} className="mx-auto" />
+          <div className="font-pixel text-sm text-[var(--exam-text)]">NO MATCHING QUESTIONS</div>
           <button
             type="button"
             onClick={() => {
@@ -247,14 +241,13 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
               <div key={q.id} className="exam-card p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1.5 flex-1">
-                    <div className="text-xs text-[var(--exam-text-muted)] font-medium">
-                      <span className="text-[var(--exam-accent)] font-semibold">{q.subject}</span>
+                    <div className="font-display-pixel text-xs text-[var(--exam-text-muted)]">
+                      <span className="text-[var(--exam-accent)] font-bold">{q.subject}</span>
                       <span> · {q.chapter}</span>
                       <span> · {q.difficulty}</span>
                       <span> · {q.questionType}</span>
-                      <span> · {q.source}{q.year ? ` ${q.year}` : ''}</span>
                     </div>
-                    <h3 className="text-sm sm:text-base font-semibold text-[var(--exam-text)]">
+                    <h3 className="text-sm sm:text-base font-bold text-[var(--exam-text)]">
                       {q.question}
                     </h3>
                   </div>
@@ -264,35 +257,27 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
                       type="button"
                       onClick={() => void toggleBookmark(q.id)}
                       aria-label={saved ? 'Remove bookmark' : 'Bookmark question'}
-                      className={`p-2 rounded-md border cursor-pointer ${
+                      className={`p-2 border-2 cursor-pointer ${
                         saved
                           ? 'bg-[var(--exam-warning-soft)] border-[var(--exam-warning)] text-[var(--exam-warning)]'
-                          : 'border-[var(--exam-border-strong)] text-[var(--exam-text-muted)]'
+                          : 'border-[var(--exam-border)] text-[var(--exam-text-muted)]'
                       }`}
                     >
-                      <Bookmark size={15} fill={saved ? 'currentColor' : 'none'} />
+                      <PixelIcon name="bookmark" size={14} />
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setExpandedId(isOpen ? null : q.id)}
-                      className="px-3 py-2 rounded-md border border-[var(--exam-border-strong)] text-xs font-semibold text-[var(--exam-text)] flex items-center gap-1 cursor-pointer"
+                      className="px-3 py-2 border-2 border-[var(--exam-border)] bg-[var(--exam-surface-alt)] font-display-pixel text-xs font-bold text-[var(--exam-text)] cursor-pointer"
                     >
-                      {isOpen ? (
-                        <>
-                          Hide <ChevronUp size={14} />
-                        </>
-                      ) : (
-                        <>
-                          Answer <ChevronDown size={14} />
-                        </>
-                      )}
+                      {isOpen ? 'Hide ▲' : 'Answer ▼'}
                     </button>
                   </div>
                 </div>
 
                 {isOpen && (
-                  <div className="mt-4 pt-4 border-t border-[var(--exam-border)] space-y-2.5 text-sm">
+                  <div className="mt-4 pt-4 border-t-2 border-[var(--exam-border)] space-y-2 text-sm">
                     <div className="text-[var(--exam-success)] font-semibold">
                       Correct Answer:{' '}
                       {formatAnswerLabel(q.questionType, q.answer, q.options, q.matchPairs?.right)}
@@ -312,7 +297,6 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 pt-2">
           <button

@@ -3,55 +3,68 @@
 
 @theme {
   --font-pixel: "Press Start 2P", monospace;
+  --font-display-pixel: "Silkscreen", monospace;
   --font-body: "Chakra Petch", system-ui, sans-serif;
   --font-sans-exam: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-code: "JetBrains Mono", monospace;
 }
 
 /* ============================================================
-   Academic Competitive Exam Surfaces (Light & Dark Mode)
+   Voxel Pixel-Game Surfaces & Palette (Day Sky & Night Sky)
    ============================================================ */
 :root,
 html.light {
-  --exam-bg: #f8fafc;
+  --exam-bg: #e7f2ff;
   --exam-surface: #ffffff;
-  --exam-surface-alt: #f1f5f9;
-  --exam-border: #e2e8f0;
-  --exam-border-strong: #cbd5e1;
+  --exam-surface-alt: #eef5ff;
+  --exam-border: #1e293b;
+  --exam-border-strong: #0f172a;
+  --exam-shadow: #0f172a;
   --exam-text: #0f172a;
-  --exam-text-secondary: #475569;
-  --exam-text-muted: #64748b;
-  --exam-accent: #2563eb;
-  --exam-accent-hover: #1d4ed8;
-  --exam-accent-soft: #eff6ff;
+  --exam-text-secondary: #334155;
+  --exam-text-muted: #475569;
+  --exam-accent: #0284c7;
+  --exam-accent-hover: #0369a1;
+  --exam-accent-soft: #e0f2fe;
   --exam-success: #16a34a;
-  --exam-success-soft: #f0fdf4;
+  --exam-success-soft: #dcfce7;
   --exam-warning: #d97706;
-  --exam-warning-soft: #fffbeb;
+  --exam-warning-soft: #fef3c7;
   --exam-danger: #dc2626;
-  --exam-danger-soft: #fef2f2;
+  --exam-danger-soft: #fee2e2;
   --exam-nav-bg: #ffffff;
+  --voxel-green: #22c55e;
+  --voxel-green-dark: #15803d;
+  --voxel-gold: #facc15;
+  --voxel-gold-dark: #a16207;
+  --voxel-cyan: #38bdf8;
 }
 
 html.dark {
-  --exam-bg: #0b1120;
-  --exam-surface: #111827;
-  --exam-surface-alt: #1e293b;
-  --exam-border: #1e293b;
-  --exam-border-strong: #334155;
+  --exam-bg: #121a2b;
+  --exam-surface: #1b263b;
+  --exam-surface-alt: #24334d;
+  --exam-border: #0b101b;
+  --exam-border-strong: #475569;
+  --exam-shadow: #070b14;
   --exam-text: #f8fafc;
   --exam-text-secondary: #cbd5e1;
   --exam-text-muted: #94a3b8;
-  --exam-accent: #3b82f6;
-  --exam-accent-hover: #60a5fa;
-  --exam-accent-soft: #172554;
-  --exam-success: #22c55e;
-  --exam-success-soft: #052e16;
-  --exam-warning: #f59e0b;
-  --exam-warning-soft: #451a03;
-  --exam-danger: #ef4444;
-  --exam-danger-soft: #450a0a;
-  --exam-nav-bg: #0f172a;
+  --exam-accent: #38bdf8;
+  --exam-accent-hover: #7dd3fc;
+  --exam-accent-soft: #17304d;
+  --exam-success: #4ade80;
+  --exam-success-soft: #0f2f21;
+  --exam-warning: #facc15;
+  --exam-warning-soft: #3b2d0c;
+  --exam-danger: #f87171;
+  --exam-danger-soft: #3b141a;
+  --exam-nav-bg: #151e30;
+  --voxel-green: #4ade80;
+  --voxel-green-dark: #166534;
+  --voxel-gold: #facc15;
+  --voxel-gold-dark: #854d0e;
+  --voxel-cyan: #38bdf8;
 }
 
 /* ============================================================
@@ -141,6 +154,11 @@ body {
   letter-spacing: 0.03em;
 }
 
+.font-display-pixel {
+  font-family: var(--font-display-pixel);
+  letter-spacing: 0.02em;
+}
+
 .font-body {
   font-family: var(--font-body);
 }
@@ -158,30 +176,81 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Clean Academic Exam Cards & Controls */
+/* ============================================================
+   Original Voxel Hero 3D Block Title Treatment
+   ============================================================ */
+.voxel-hero-cg {
+  color: #4ade80;
+  text-shadow:
+    0 3px 0 #166534,
+    0 6px 0 #070b14,
+    3px 0 0 #070b14,
+    -2px -2px 0 #070b14,
+    4px 7px 0 rgba(0, 0, 0, 0.55);
+}
+
+html.light .voxel-hero-cg {
+  color: #22c55e;
+  text-shadow:
+    0 3px 0 #15803d,
+    0 6px 0 #0f172a,
+    3px 0 0 #0f172a,
+    -2px -2px 0 #0f172a,
+    4px 7px 0 rgba(15, 23, 42, 0.25);
+}
+
+.voxel-hero-quiz {
+  color: #facc15;
+  text-shadow:
+    0 3px 0 #a16207,
+    0 6px 0 #070b14,
+    3px 0 0 #070b14,
+    -2px -2px 0 #070b14,
+    4px 7px 0 rgba(0, 0, 0, 0.55);
+}
+
+html.light .voxel-hero-quiz {
+  color: #f59e0b;
+  text-shadow:
+    0 3px 0 #92400e,
+    0 6px 0 #0f172a,
+    3px 0 0 #0f172a,
+    -2px -2px 0 #0f172a,
+    4px 7px 0 rgba(15, 23, 42, 0.25);
+}
+
+/* ============================================================
+   Blocky Voxel Game Cards, Inputs, & Tactile Pixel Buttons
+   ============================================================ */
 .exam-card {
   background-color: var(--exam-surface);
-  border: 1px solid var(--exam-border);
-  border-radius: 10px;
+  border: 3px solid var(--exam-border);
+  box-shadow:
+    4px 4px 0px var(--exam-shadow),
+    inset 0 2px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 0px;
 }
 
 .exam-card-subtle {
   background-color: var(--exam-surface-alt);
-  border: 1px solid var(--exam-border);
-  border-radius: 8px;
+  border: 2px solid var(--exam-border);
+  box-shadow: 2px 2px 0px var(--exam-shadow);
+  border-radius: 0px;
 }
 
 .exam-input {
-  background-color: var(--exam-surface);
+  background-color: var(--exam-surface-alt);
   color: var(--exam-text);
-  border: 1px solid var(--exam-border-strong);
-  border-radius: 8px;
+  border: 3px solid var(--exam-border);
+  box-shadow: inset 2px 2px 0px rgba(0, 0, 0, 0.18);
+  border-radius: 0px;
   outline: none;
-  transition: border-color 140ms ease;
+  transition: border-color 120ms steps(2), box-shadow 120ms steps(2);
 }
 
 .exam-input:focus {
   border-color: var(--exam-accent);
+  box-shadow: 0 0 0 2px var(--exam-accent-soft);
 }
 
 .exam-btn {
@@ -189,36 +258,121 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-weight: 600;
-  border-radius: 8px;
+  font-family: var(--font-display-pixel);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 0px;
+  border: 3px solid var(--exam-border);
+  box-shadow:
+    4px 4px 0px var(--exam-shadow),
+    inset 0 2px 0 rgba(255, 255, 255, 0.28);
   min-height: 44px;
-  padding: 0.5rem 1rem;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  padding: 0.55rem 1.1rem;
+  transition: transform 90ms steps(2), box-shadow 90ms steps(2), background-color 120ms linear;
   cursor: pointer;
+  user-select: none;
   white-space: nowrap;
 }
 
+.exam-btn:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow:
+    5px 5px 0px var(--exam-shadow),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+.exam-btn:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0px var(--exam-shadow);
+}
+
+.exam-btn:focus-visible {
+  outline: 3px solid var(--voxel-gold);
+  outline-offset: 2px;
+}
+
 .exam-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+  box-shadow: 2px 2px 0px var(--exam-shadow);
 }
 
 .exam-btn-primary {
-  background-color: var(--exam-accent);
-  color: #ffffff;
-  border: 1px solid var(--exam-accent);
+  background-color: #22c55e;
+  color: #07120c;
+  border-color: #0b0f1a;
+  box-shadow:
+    0 4px 0 #15803d,
+    4px 4px 0px var(--exam-shadow),
+    inset 0 2px 0 #86efac;
 }
+
 .exam-btn-primary:hover:not(:disabled) {
-  background-color: var(--exam-accent-hover);
+  background-color: #4ade80;
+  box-shadow:
+    0 5px 0 #15803d,
+    5px 5px 0px var(--exam-shadow),
+    inset 0 2px 0 #bbf7d0;
+}
+
+.exam-btn-primary:active:not(:disabled) {
+  transform: translate(2px, 3px);
+  box-shadow:
+    0 1px 0 #15803d,
+    1px 1px 0px var(--exam-shadow);
 }
 
 .exam-btn-secondary {
-  background-color: var(--exam-surface);
-  color: var(--exam-text);
-  border: 1px solid var(--exam-border-strong);
-}
-.exam-btn-secondary:hover:not(:disabled) {
   background-color: var(--exam-surface-alt);
+  color: var(--exam-text);
+  border-color: var(--exam-border);
+}
+
+.exam-btn-secondary:hover:not(:disabled) {
+  background-color: var(--exam-accent-soft);
+  border-color: var(--exam-accent);
+}
+
+.exam-btn-gold {
+  background-color: #facc15;
+  color: #0b0f1a;
+  border-color: #0b0f1a;
+  box-shadow:
+    0 4px 0 #a16207,
+    4px 4px 0px var(--exam-shadow),
+    inset 0 2px 0 #fef08a;
+}
+
+.exam-btn-gold:hover:not(:disabled) {
+  background-color: #fde047;
+}
+
+/* Interactive blocky tile cards (categories / answers) */
+.voxel-tile {
+  background-color: var(--exam-surface);
+  border: 3px solid var(--exam-border);
+  box-shadow:
+    4px 4px 0px var(--exam-shadow),
+    inset 0 2px 0 rgba(255, 255, 255, 0.14);
+  border-radius: 0px;
+  transition: transform 90ms steps(2), box-shadow 90ms steps(2), border-color 120ms linear, background-color 120ms linear;
+}
+
+.voxel-tile:hover:not(:disabled) {
+  transform: translate(-1px, -2px);
+  box-shadow:
+    5px 6px 0px var(--exam-shadow),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+}
+
+.voxel-tile:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px var(--exam-shadow);
+}
+
+.voxel-tile:focus-visible {
+  outline: 3px solid var(--voxel-gold);
+  outline-offset: 2px;
 }
 
 /* ============================================================
@@ -367,9 +521,18 @@ body {
   image-rendering: pixelated;
 }
 
+/* ============================================================
+   Pixel Animations & Motion Safeguards
+   ============================================================ */
 @keyframes pixel-bob {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes pixel-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+  100% { transform: scale(1); }
 }
 
 @keyframes pixel-shake {
@@ -385,8 +548,22 @@ body {
   50% { opacity: 0.35; }
 }
 
+@keyframes voxel-loader-step {
+  0%, 100% { transform: translateY(0px); opacity: 0.45; }
+  50% { transform: translateY(-8px); opacity: 1; }
+}
+
+@keyframes voxel-cloud-drift {
+  0%, 100% { transform: translateX(0px); }
+  50% { transform: translateX(24px); }
+}
+
 .animate-pixel-bob {
-  animation: pixel-bob 1.8s steps(3) infinite;
+  animation: pixel-bob 2.2s steps(3) infinite;
+}
+
+.animate-pixel-pop {
+  animation: pixel-pop 0.28s steps(3);
 }
 
 .animate-pixel-shake {
@@ -395,6 +572,18 @@ body {
 
 .animate-pixel-flash {
   animation: pixel-flash 0.9s steps(2) infinite;
+}
+
+.voxel-loader-block {
+  animation: voxel-loader-step 0.72s steps(2) infinite;
+}
+
+.voxel-cloud-drift-slow {
+  animation: voxel-cloud-drift 18s linear infinite;
+}
+
+.voxel-cloud-drift-reverse {
+  animation: voxel-cloud-drift 22s linear infinite reverse;
 }
 
 .reduced-motion *,

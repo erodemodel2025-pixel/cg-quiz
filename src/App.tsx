@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArcadeProvider, useArcade } from './context/ArcadeContext.tsx';
 import { PixelWorldCanvas } from './components/PixelWorldCanvas.tsx';
+import { VoxelBackdrop } from './components/pixel/VoxelBackdrop.tsx';
+import { HowToPlayModal } from './components/pixel/HowToPlayModal.tsx';
 import { TopNav, type AppRoute } from './components/TopNav.tsx';
 import { RegisterModal } from './components/RegisterModal.tsx';
 import { PixelCelebration } from './components/PixelCelebration.tsx';
@@ -48,6 +50,7 @@ function ArcadeShell() {
   const [examRunKey, setExamRunKey] = useState(0);
   const [studioPreset, setStudioPreset] = useState<Partial<ExamSettings> | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
 
   const navigate = (next: AppRoute) => {
@@ -101,15 +104,18 @@ function ArcadeShell() {
           : 'bg-[var(--exam-bg)] text-[var(--exam-text)]'
       }`}
     >
-      {isArcadeSurface && <PixelWorldCanvas />}
+      {isArcadeSurface ? <PixelWorldCanvas /> : <VoxelBackdrop />}
 
       <TopNav
         route={route}
+        inActiveQuiz={Boolean(activeExamSettings)}
         onNavigate={navigate}
+        onQuickPlay={() => startExamQuiz({ mode: 'quick', questionCount: 10, timeLimitMinutes: 8 })}
         onOpenRegister={() => setRegisterOpen(true)}
+        onOpenHowToPlay={() => setHowToPlayOpen(true)}
       />
 
-      <main className="flex-1 relative z-10 pb-10">
+      <main className="flex-1 relative z-10 pb-12">
         <ErrorBoundary onGoHome={() => navigate('home')} onReportError={reportError}>
           {activeGame ? (
             <>
@@ -147,6 +153,7 @@ function ArcadeShell() {
                 setCustomExamQuestionIds(undefined);
                 setResumedDraft(null);
               }}
+              onPlayAgain={() => startExamQuiz(activeExamSettings, customExamQuestionIds)}
               onRetryWrongIds={(wrongIds) =>
                 startExamQuiz({ mode: 'revision', questionCount: wrongIds.length }, wrongIds)
               }
@@ -160,11 +167,8 @@ function ArcadeShell() {
                   onPlay={() => navigate('quiz-studio')}
                   onStartExamPreset={(preset) => startExamQuiz(preset)}
                   onResumeDraft={(draft) => resumeExamDraft(draft)}
-                  onOpenMistakes={() => navigate('mistakes')}
+                  onOpenHowToPlay={() => setHowToPlayOpen(true)}
                   onOpenAnalytics={() => navigate('analytics')}
-                  onLaunchGame={(g) => launchGame(g, 'practice')}
-                  onLeaderboard={() => navigate('leaderboard')}
-                  onOpenRegister={() => setRegisterOpen(true)}
                 />
               )}
               {route === 'quiz-studio' && (
@@ -222,16 +226,22 @@ function ArcadeShell() {
       </main>
 
       <footer
-        className={`relative z-10 border-t py-4 px-4 text-center text-xs ${
+        className={`relative z-10 border-t-3 py-4 px-4 text-center text-xs ${
           isArcadeSurface
-            ? 'border-t-2 border-[var(--border-pixel)] bg-[#04060E] font-code text-[var(--text-muted)]'
-            : 'border-[var(--exam-border)] bg-[var(--exam-surface)] text-[var(--exam-text-muted)]'
+            ? 'border-[var(--border-pixel)] bg-[#04060E] font-code text-[var(--text-muted)]'
+            : 'border-[var(--exam-border)] bg-[var(--exam-nav-bg)] font-display-pixel text-[var(--exam-text-muted)]'
         }`}
       >
-        CGQUIZ · Competitive Quiz Platform & Engineering Arcade
+        CG QUIZ · LEARN · PLAY · CHALLENGE YOURSELF
       </footer>
 
       <RegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)} />
+
+      <HowToPlayModal
+        open={howToPlayOpen}
+        onClose={() => setHowToPlayOpen(false)}
+        onStartQuiz={() => startExamQuiz({ mode: 'quick', questionCount: 10, timeLimitMinutes: 8 })}
+      />
 
       <PixelCelebration onTriggerDevMode={() => setDevOpen(true)} />
 

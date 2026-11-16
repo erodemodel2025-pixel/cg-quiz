@@ -1,17 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Award,
-  BookOpen,
-  Clock,
-  Flame,
-  Gamepad2,
-  Heart,
-  Play,
-  RefreshCw,
-  ShieldCheck,
-  Target,
-  Zap,
-} from 'lucide-react';
+import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { EXAM_CATEGORIES } from '../../shared/categories.ts';
 import type {
   DailyExamStatus,
@@ -21,6 +9,7 @@ import type {
   QuestionType,
 } from '../../shared/types.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { PixelIcon, type PixelIconName } from '../components/pixel/PixelArtAssets.tsx';
 
 interface QuizStudioPageProps {
   initialPreset?: Partial<ExamSettings> | null;
@@ -32,17 +21,17 @@ const QUIZ_MODES: Array<{
   id: ExamMode;
   title: string;
   desc: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: PixelIconName;
 }> = [
-  { id: 'quick', title: 'Quick Quiz', desc: '10 focused questions with instant insights.', icon: Zap },
-  { id: 'practice', title: 'Practice Mode', desc: 'Custom count & filters with full breakdowns.', icon: BookOpen },
-  { id: 'timed', title: 'Timed Quiz', desc: 'Fixed clock, no answer reveal until submit.', icon: Clock },
-  { id: 'mock', title: 'Mock Test', desc: 'Full exam hall UI, palette & negative marking.', icon: ShieldCheck },
-  { id: 'rapid', title: 'Rapid Fire', desc: 'Short, snappy stems under a 2-minute sprint.', icon: Flame },
-  { id: 'weak', title: 'Weak Topics', desc: 'Targets concepts from your past mistakes.', icon: Target },
-  { id: 'daily', title: 'Daily Challenge', desc: '1 attempt per day · Ranked globally.', icon: Award },
-  { id: 'survival', title: 'Survival Mode', desc: '3 lives · Every wrong answer costs a heart.', icon: Heart },
-  { id: 'revision', title: 'Revision Mode', desc: 'Drill unresolved items from My Mistakes.', icon: RefreshCw },
+  { id: 'quick', title: 'Quick Quiz', desc: '10 questions · Instant feedback', icon: 'quiz' },
+  { id: 'practice', title: 'Practice', desc: 'Custom topics & full explanations', icon: 'book' },
+  { id: 'timed', title: 'Timed Quiz', desc: 'Fixed clock · Reveal at finish', icon: 'timer' },
+  { id: 'mock', title: 'Mock Exam', desc: 'Question palette & negative marks', icon: 'trophy' },
+  { id: 'rapid', title: 'Rapid Fire', desc: 'Fast 2-minute speed sprint', icon: 'flame' },
+  { id: 'weak', title: 'Weak Topics', desc: 'Drills areas you missed most', icon: 'target' },
+  { id: 'daily', title: 'Daily Quest', desc: '1 global challenge each day', icon: 'score' },
+  { id: 'survival', title: 'Survival', desc: '3 hearts · 1 mistake costs a life', icon: 'heart' },
+  { id: 'revision', title: 'Revision', desc: 'Retry your saved mistakes', icon: 'refresh' },
 ];
 
 export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
@@ -70,6 +59,7 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
     initialPreset?.negativeMarking ?? 0
   );
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [chaptersBySubject, setChaptersBySubject] = useState<Record<string, string[]>>({});
   const [dailyStatus, setDailyStatus] = useState<DailyExamStatus | null>(null);
@@ -104,6 +94,7 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
   }, [examUserId]);
 
   const handleSelectMode = (nextMode: ExamMode) => {
+    arcadeAudio.playSfx('click');
     setMode(nextMode);
     if (nextMode === 'quick' || nextMode === 'daily') {
       setQuestionCount(10);
@@ -130,6 +121,7 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
   const dailyDone = mode === 'daily' && dailyStatus?.completed;
 
   const launch = () => {
+    arcadeAudio.playSfx('gameStart');
     onStartQuiz({
       mode,
       categoryId,
@@ -144,54 +136,95 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-7 sm:py-9 space-y-7">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--exam-text)]">Quiz & Exam Studio</h1>
-          <p className="text-sm text-[var(--exam-text-secondary)]">
-            Choose a mode, configure exam parameters, and start a timed or adaptive session.
+          <h1 className="font-pixel text-base sm:text-xl text-[var(--exam-text)]">
+            CATEGORIES &amp; MODES
+          </h1>
+          <p className="text-sm text-[var(--exam-text-secondary)] mt-1">
+            Pick any category block and game mode, then press Start Quiz.
           </p>
         </div>
+
         <button
           type="button"
-          onClick={onOpenArcade}
-          className="exam-btn exam-btn-secondary text-sm"
+          onClick={() => {
+            arcadeAudio.playSfx('click');
+            onOpenArcade();
+          }}
+          className="font-display-pixel text-xs sm:text-sm text-[var(--exam-accent)] hover:underline flex items-center gap-1.5 cursor-pointer"
         >
-          <Gamepad2 size={16} /> Arcade Mini-Games
+          <PixelIcon name="arcade" size={15} />
+          <span>Play Arcade Mini-Games →</span>
         </button>
       </div>
 
+      {/* Category Selector Blocks */}
+      <section className="exam-card p-5 sm:p-6 space-y-4">
+        <h2 className="font-pixel text-xs text-[var(--exam-text-muted)]">1. PICK A CATEGORY</h2>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              setCategoryId('all');
+            }}
+            className={`px-3.5 py-2 border-2 font-display-pixel text-xs font-bold cursor-pointer ${
+              categoryId === 'all'
+                ? 'bg-[var(--voxel-gold)] text-[#0B0F1A] border-[#0B0F1A]'
+                : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text)] hover:border-[var(--exam-accent)]'
+            }`}
+          >
+            ALL CATEGORIES
+          </button>
+          {EXAM_CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => {
+                arcadeAudio.playSfx('click');
+                setCategoryId(cat.id);
+              }}
+              className={`px-3.5 py-2 border-2 font-display-pixel text-xs font-bold cursor-pointer ${
+                categoryId === cat.id
+                  ? 'bg-[var(--voxel-gold)] text-[#0B0F1A] border-[#0B0F1A]'
+                  : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text)] hover:border-[var(--exam-accent)]'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+      </section>
+
       {/* 9 Quiz Modes Grid */}
-      <section>
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--exam-text-muted)] mb-3">
-          1. Select Mode
-        </h2>
+      <section className="space-y-3">
+        <h2 className="font-pixel text-xs text-[var(--exam-text-muted)]">2. PICK A GAME MODE</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {QUIZ_MODES.map((m) => {
-            const Icon = m.icon;
             const active = mode === m.id;
             return (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => handleSelectMode(m.id)}
-                className={`p-4 rounded-lg border text-left transition-colors cursor-pointer ${
+                className={`voxel-tile p-4 text-left cursor-pointer ${
                   active
-                    ? 'bg-[var(--exam-accent-soft)] border-[var(--exam-accent)]'
-                    : 'bg-[var(--exam-surface)] border-[var(--exam-border)] hover:border-[var(--exam-border-strong)]'
+                    ? 'bg-[var(--exam-accent-soft)] border-[var(--voxel-gold)] ring-2 ring-[var(--voxel-gold)]'
+                    : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="font-bold text-sm text-[var(--exam-text)] flex items-center gap-2">
-                    <Icon
-                      size={16}
-                      className={active ? 'text-[var(--exam-accent)]' : 'text-[var(--exam-text-muted)]'}
-                    />
+                  <span className="font-display-pixel font-bold text-sm text-[var(--exam-text)] flex items-center gap-2">
+                    <span className={active ? 'text-[var(--voxel-gold)]' : 'text-[var(--exam-accent)]'}>
+                      <PixelIcon name={m.icon} size={16} />
+                    </span>
                     {m.title}
                   </span>
                   {m.id === 'daily' && dailyStatus?.completed && (
-                    <span className="text-[11px] font-semibold text-[var(--exam-success)]">
-                      Completed
+                    <span className="font-display-pixel text-[10px] text-[var(--exam-success)]">
+                      DONE
                     </span>
                   )}
                 </div>
@@ -206,13 +239,12 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
       {dailyDone && dailyStatus && (
         <div className="exam-card p-5 border-[var(--exam-success)] flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-xs font-bold uppercase text-[var(--exam-success)]">
-              Today’s Daily Challenge Completed
+            <div className="font-pixel text-xs text-[var(--exam-success)]">
+              DAILY QUEST COMPLETE!
             </div>
             <div className="text-sm text-[var(--exam-text)] mt-1 font-code">
-              Score: {dailyStatus.score}/{dailyStatus.maxScore} · Accuracy: {dailyStatus.accuracy}% ·
-              Time: {dailyStatus.timeSpentSeconds}s · Rank #{dailyStatus.rank ?? 1}
-              {dailyStatus.weakArea ? ` · Focus area: ${dailyStatus.weakArea}` : ''}
+              Score: {dailyStatus.score}/{dailyStatus.maxScore} · {dailyStatus.accuracy}% · Rank #
+              {dailyStatus.rank ?? 1}
             </div>
           </div>
           <button
@@ -220,54 +252,34 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
             onClick={() => handleSelectMode('quick')}
             className="exam-btn exam-btn-secondary text-xs"
           >
-            Switch to Quick Quiz
+            Play Quick Quiz Instead
           </button>
         </div>
       )}
 
-      {/* Categories Selector (All 14 Configurable Categories) */}
-      <section className="exam-card p-5 sm:p-6 space-y-5">
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--exam-text-muted)] mb-3">
-            2. Category / Exam Track
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setCategoryId('all')}
-              className={`px-3.5 py-2 rounded-md border text-xs font-semibold cursor-pointer ${
-                categoryId === 'all'
-                  ? 'bg-[var(--exam-accent)] text-white border-[var(--exam-accent)]'
-                  : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border-strong)] text-[var(--exam-text-secondary)]'
-              }`}
-            >
-              All Categories
-            </button>
-            {EXAM_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setCategoryId(cat.id)}
-                className={`px-3.5 py-2 rounded-md border text-xs font-semibold cursor-pointer ${
-                  categoryId === cat.id
-                    ? 'bg-[var(--exam-accent)] text-white border-[var(--exam-accent)]'
-                    : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border-strong)] text-[var(--exam-text-secondary)]'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
+      {/* Clean Custom Settings + Primary Start Button */}
+      <section className="exam-card p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              setShowAdvanced((v) => !v);
+            }}
+            className="font-display-pixel text-xs sm:text-sm text-[var(--exam-accent)] hover:underline cursor-pointer"
+          >
+            {showAdvanced ? 'Hide Custom Options ▲' : 'Customize Difficulty, Count & Timer ▼'}
+          </button>
+
+          <span className="font-code text-xs text-[var(--exam-text-muted)]">
+            {questionCount} Qs · {timeLimitMinutes} min · {difficulty}
+          </span>
         </div>
 
-        {/* Exam Settings Controls */}
-        <div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--exam-text-muted)] mb-3">
-            3. Exam Settings
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {showAdvanced && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-3 border-t-2 border-[var(--exam-border)]">
             <div>
-              <label className="block text-xs font-medium text-[var(--exam-text-secondary)] mb-1">
+              <label className="block font-display-pixel text-xs text-[var(--exam-text-secondary)] mb-1">
                 Subject
               </label>
               <select
@@ -288,7 +300,7 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--exam-text-secondary)] mb-1">
+              <label className="block font-display-pixel text-xs text-[var(--exam-text-secondary)] mb-1">
                 Chapter
               </label>
               <select
@@ -307,7 +319,7 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--exam-text-secondary)] mb-1">
+              <label className="block font-display-pixel text-xs text-[var(--exam-text-secondary)] mb-1">
                 Difficulty
               </label>
               <select
@@ -315,7 +327,7 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
                 onChange={(e) => setDifficulty(e.target.value as ExamSettings['difficulty'])}
                 className="exam-input w-full px-3 py-2.5 text-sm"
               >
-                <option value="Adaptive">Adaptive (Learns from you)</option>
+                <option value="Adaptive">Adaptive</option>
                 <option value="Mixed">Mixed</option>
                 <option value="Easy">Easy</option>
                 <option value="Medium">Medium</option>
@@ -325,7 +337,7 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--exam-text-secondary)] mb-1">
+              <label className="block font-display-pixel text-xs text-[var(--exam-text-secondary)] mb-1">
                 Question Type
               </label>
               <select
@@ -333,20 +345,20 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
                 onChange={(e) => setQuestionType(e.target.value as ExamSettings['questionType'])}
                 className="exam-input w-full px-3 py-2.5 text-sm"
               >
-                <option value="All">All Question Types</option>
-                <option value="single">Single Correct MCQ</option>
+                <option value="All">All Types</option>
+                <option value="single">Single MCQ</option>
                 <option value="multiple">Multiple Correct</option>
                 <option value="truefalse">True / False</option>
                 <option value="integer">Integer / Numeric</option>
                 <option value="assertion_reason">Assertion / Reason</option>
-                <option value="match">Match the Following</option>
-                <option value="image">Image / Diagram Based</option>
+                <option value="match">Match Following</option>
+                <option value="image">Diagram Based</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--exam-text-secondary)] mb-1">
-                Number of Questions
+              <label className="block font-display-pixel text-xs text-[var(--exam-text-secondary)] mb-1">
+                Questions
               </label>
               <select
                 value={questionCount}
@@ -363,8 +375,8 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-[var(--exam-text-secondary)] mb-1">
-                Time Limit & Negative Marking
+              <label className="block font-display-pixel text-xs text-[var(--exam-text-secondary)] mb-1">
+                Timer &amp; Marking
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <select
@@ -392,21 +404,17 @@ export const QuizStudioPage: React.FC<QuizStudioPageProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="pt-2 flex flex-wrap items-center justify-between gap-4 border-t border-[var(--exam-border)]">
-          <div className="text-xs text-[var(--exam-text-muted)]">
-            {mode === 'mock' || mode === 'timed'
-              ? 'Exam Integrity: Answers stay hidden until final submission.'
-              : 'Smart Explanations: Concept, Why, Common Trap & Quick Tip unlocked after each check.'}
-          </div>
+        <div className="pt-2 flex justify-end">
           <button
             type="button"
             disabled={Boolean(dailyDone)}
             onClick={launch}
-            className="exam-btn exam-btn-primary px-7 py-3 text-sm"
+            className="exam-btn exam-btn-primary w-full sm:w-auto px-8 py-3.5 text-sm sm:text-base"
           >
-            <Play size={16} fill="currentColor" /> Start {QUIZ_MODES.find((x) => x.id === mode)?.title}
+            <PixelIcon name="play" size={16} />
+            <span>START {QUIZ_MODES.find((x) => x.id === mode)?.title.toUpperCase()}</span>
           </button>
         </div>
       </section>

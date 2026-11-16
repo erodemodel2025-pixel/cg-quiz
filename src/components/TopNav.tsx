@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
-import { Menu, Moon, Sun, WifiOff, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
+import { PixelIcon, PixelLogo } from './pixel/PixelArtAssets.tsx';
 
 export type AppRoute =
   | 'home'
@@ -16,26 +16,56 @@ export type AppRoute =
 
 interface TopNavProps {
   route: AppRoute;
+  inActiveQuiz?: boolean;
   onNavigate: (route: AppRoute) => void;
+  onQuickPlay: () => void;
   onOpenRegister: () => void;
+  onOpenHowToPlay: () => void;
 }
 
-const NAV_ITEMS: Array<{ id: AppRoute; label: string }> = [
-  { id: 'home', label: 'Home' },
-  { id: 'quiz-studio', label: 'Quizzes' },
-  { id: 'bank', label: 'Bank' },
-  { id: 'mistakes', label: 'Mistakes' },
-  { id: 'analytics', label: 'Analytics' },
-  { id: 'leaderboard', label: 'Leaderboard' },
-  { id: 'arcade', label: 'Arcade' },
-];
+export const TopNav: React.FC<TopNavProps> = ({
+  route,
+  inActiveQuiz = false,
+  onNavigate,
+  onQuickPlay,
+  onOpenRegister,
+  onOpenHowToPlay,
+}) => {
+  const {
+    player,
+    uiTheme,
+    toggleUiTheme,
+    soundEnabled,
+    toggleSound,
+    reducedMotion,
+    toggleReducedMotion,
+    isOnline,
+    unlockAchievement,
+  } = useArcade();
 
-export const TopNav: React.FC<TopNavProps> = ({ route, onNavigate, onOpenRegister }) => {
-  const { player, uiTheme, toggleUiTheme, isOnline, unlockAchievement } = useArcade();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const logoClicksRef = useRef(0);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
 
   const isArcadeMode = route === 'arcade';
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onOutside = (e: MouseEvent) => {
+      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('mousedown', onOutside);
+    window.addEventListener('keydown', onEsc);
+    return () => {
+      window.removeEventListener('mousedown', onOutside);
+      window.removeEventListener('keydown', onEsc);
+    };
+  }, [menuOpen]);
 
   const handleLogoClick = () => {
     arcadeAudio.playSfx('click');
@@ -45,154 +75,228 @@ export const TopNav: React.FC<TopNavProps> = ({ route, onNavigate, onOpenRegiste
       void unlockAchievement('logo_poke', 'CORE OVERHEAT!');
     }
     onNavigate('home');
-    setMobileOpen(false);
+    setMenuOpen(false);
   };
 
   const handleNav = (target: AppRoute) => {
     arcadeAudio.playSfx('click');
     onNavigate(target);
-    setMobileOpen(false);
+    setMenuOpen(false);
   };
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b ${
+      className={`sticky top-0 z-40 border-b-3 ${
         isArcadeMode
-          ? 'bg-[#04060E] border-b-3 border-[var(--border-pixel)] text-[#F4F7FF]'
+          ? 'bg-[#04060E] border-[var(--border-pixel)] text-[#F4F7FF]'
           : 'bg-[var(--exam-nav-bg)] border-[var(--exam-border)] text-[var(--exam-text)]'
       }`}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Zone 1: Brand Wordmark */}
+      <div
+        ref={menuWrapRef}
+        className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 relative"
+      >
+        {/* LOGO */}
         <button
           type="button"
           onClick={handleLogoClick}
-          className={`whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-2 ${
-            isArcadeMode
-              ? 'font-pixel text-sm sm:text-base text-[var(--accent-primary)] hover:text-[#FFE600]'
-              : 'font-exam font-extrabold text-lg tracking-tight text-[var(--exam-text)]'
-          }`}
+          className="cursor-pointer flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-[var(--voxel-gold)]"
+          aria-label="CG QUIZ Home"
         >
-          <span>CGQUIZ</span>
+          <span className="sm:hidden">
+            <PixelLogo variant="mobile" />
+          </span>
+          <span className="hidden sm:inline-flex">
+            <PixelLogo variant="desktop" />
+          </span>
           {!isOnline && (
             <span
-              title="Offline mode — cached data active"
-              className="text-[11px] font-medium text-[var(--exam-warning)] flex items-center gap-1"
+              title="Offline mode — cached questions active"
+              className="font-display-pixel text-[10px] px-1.5 py-0.5 bg-[var(--exam-warning-soft)] border-2 border-[var(--exam-warning)] text-[var(--exam-warning)]"
             >
-              <WifiOff size={13} /> Offline
+              OFFLINE
             </span>
           )}
         </button>
 
-        {/* Zone 2: Single-line Nav Links */}
-        <nav className="hidden lg:flex items-center gap-5">
-          {NAV_ITEMS.map((item) => {
-            const active = route === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleNav(item.id)}
-                className={`text-sm font-semibold whitespace-nowrap shrink-0 py-1.5 border-b-2 transition-colors cursor-pointer ${
-                  isArcadeMode
-                    ? active
-                      ? 'text-[#FFE600] border-[#FFE600]'
-                      : 'text-[#B3C2EB] border-transparent hover:text-white'
-                    : active
-                      ? 'text-[var(--exam-accent)] border-[var(--exam-accent)]'
-                      : 'text-[var(--exam-text-secondary)] border-transparent hover:text-[var(--exam-text)]'
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+        {/* Minimal Navigation: Desktop = PLAY · CATEGORIES · SCORES · MENU | Mobile = PLAY · MENU */}
+        <nav className="flex items-center gap-2 sm:gap-3" aria-label="Main navigation">
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              setMenuOpen(false);
+              onQuickPlay();
+            }}
+            className="exam-btn exam-btn-primary text-xs sm:text-sm px-3.5 sm:px-4 min-h-[40px]"
+          >
+            <PixelIcon name="play" size={14} />
+            <span>PLAY</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNav('quiz-studio')}
+            className={`hidden md:inline-flex exam-btn text-xs sm:text-sm px-3.5 min-h-[40px] ${
+              !inActiveQuiz && route === 'quiz-studio'
+                ? 'exam-btn-gold'
+                : 'exam-btn-secondary'
+            }`}
+          >
+            CATEGORIES
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNav('leaderboard')}
+            className={`hidden md:inline-flex exam-btn text-xs sm:text-sm px-3.5 min-h-[40px] ${
+              route === 'leaderboard' ? 'exam-btn-gold' : 'exam-btn-secondary'
+            }`}
+          >
+            SCORES
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              setMenuOpen((v) => !v);
+            }}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            className={`exam-btn text-xs sm:text-sm px-3 sm:px-3.5 min-h-[40px] ${
+              menuOpen ? 'exam-btn-gold' : 'exam-btn-secondary'
+            }`}
+          >
+            <PixelIcon name={menuOpen ? 'close' : 'menu'} size={15} />
+            <span>MENU</span>
+          </button>
         </nav>
 
-        {/* Zone 3: Dark/Light Toggle + Profile Action */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={toggleUiTheme}
-            aria-label={uiTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className={`p-2 rounded-lg border cursor-pointer ${
+        {/* Single Clean Game Menu Drawer */}
+        {menuOpen && (
+          <div
+            className={`absolute right-4 sm:right-6 top-[calc(100%+6px)] w-[min(92vw,320px)] p-4 z-50 space-y-3 ${
               isArcadeMode
-                ? 'border-[var(--border-pixel)] text-[#DCE8FF] hover:border-[#00F0FF]'
-                : 'border-[var(--exam-border-strong)] text-[var(--exam-text-secondary)] hover:text-[var(--exam-text)]'
+                ? 'pixel-panel bg-[#111833]'
+                : 'exam-card bg-[var(--exam-surface)]'
             }`}
+            role="menu"
           >
-            {uiTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+            {/* Player Identity */}
+            <div className="exam-card-subtle p-3 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-display-pixel text-[10px] uppercase text-[var(--exam-text-muted)]">
+                  PLAYER
+                </div>
+                <div className="font-display-pixel text-xs sm:text-sm font-bold text-[var(--exam-text)] truncate">
+                  {player ? player.name : 'Guest Adventurer'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playSfx('click');
+                  setMenuOpen(false);
+                  if (player) {
+                    onNavigate('profile');
+                  } else {
+                    onOpenRegister();
+                  }
+                }}
+                className="exam-btn exam-btn-secondary text-xs px-3 py-1.5 min-h-[36px]"
+              >
+                {player ? 'Profile' : 'Set Name'}
+              </button>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              arcadeAudio.playSfx('click');
-              if (player) {
-                onNavigate('profile');
-              } else {
-                onOpenRegister();
-              }
-            }}
-            className={`px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold max-w-[150px] truncate cursor-pointer whitespace-nowrap ${
-              isArcadeMode
-                ? 'pixel-btn pixel-btn-cyan text-[10px]'
-                : 'bg-[var(--exam-accent)] text-white hover:bg-[var(--exam-accent-hover)]'
-            }`}
-          >
-            {player ? player.name : 'Set Name'}
-          </button>
+            {/* Menu Destinations */}
+            <div className="grid grid-cols-1 gap-1.5">
+              {(
+                [
+                  { id: 'quiz-studio', label: 'All Categories & Modes', icon: 'quiz' },
+                  { id: 'leaderboard', label: 'Scores & Rankings', icon: 'trophy' },
+                  { id: 'mistakes', label: 'My Mistakes & Saved', icon: 'bookmark' },
+                  { id: 'bank', label: 'Question Bank', icon: 'book' },
+                  { id: 'analytics', label: 'My Progress & History', icon: 'score' },
+                  { id: 'arcade', label: 'Arcade Mini-Games', icon: 'arcade' },
+                ] as const
+              ).map((item) => {
+                const active = route === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleNav(item.id)}
+                    className={`w-full text-left px-3 py-2.5 border-2 font-display-pixel text-xs flex items-center gap-2.5 cursor-pointer transition-colors ${
+                      active
+                        ? 'bg-[var(--exam-accent-soft)] border-[var(--exam-accent)] text-[var(--exam-accent)]'
+                        : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text)] hover:border-[var(--exam-accent)]'
+                    }`}
+                  >
+                    <PixelIcon name={item.icon} size={15} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
 
-          <button
-            type="button"
-            onClick={() => {
-              arcadeAudio.playSfx('click');
-              setMobileOpen((v) => !v);
-            }}
-            aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            className={`lg:hidden p-2 rounded-lg border cursor-pointer ${
-              isArcadeMode
-                ? 'border-[var(--border-pixel)] text-white'
-                : 'border-[var(--exam-border-strong)] text-[var(--exam-text)]'
-            }`}
-          >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-        </div>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  arcadeAudio.playSfx('click');
+                  setMenuOpen(false);
+                  onOpenHowToPlay();
+                }}
+                className="w-full text-left px-3 py-2.5 border-2 bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text)] hover:border-[var(--exam-accent)] font-display-pixel text-xs flex items-center gap-2.5 cursor-pointer"
+              >
+                <PixelIcon name="question" size={15} />
+                <span>How to Play</span>
+              </button>
+            </div>
+
+            {/* Compact Game Settings Row */}
+            <div className="pt-2 border-t-2 border-[var(--exam-border)] grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => toggleSound()}
+                className="exam-card-subtle py-2 px-2 flex flex-col items-center justify-center gap-1 text-[10px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
+                aria-label={soundEnabled ? 'Mute sound effects' : 'Enable sound effects'}
+              >
+                <PixelIcon name={soundEnabled ? 'sound-on' : 'sound-off'} size={15} />
+                <span>{soundEnabled ? 'SFX ON' : 'MUTED'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playSfx('click');
+                  toggleUiTheme();
+                }}
+                className="exam-card-subtle py-2 px-2 flex flex-col items-center justify-center gap-1 text-[10px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
+                aria-label={uiTheme === 'dark' ? 'Switch to light sky' : 'Switch to dark sky'}
+              >
+                <PixelIcon name={uiTheme === 'dark' ? 'sun' : 'moon'} size={15} />
+                <span>{uiTheme === 'dark' ? 'DAY' : 'NIGHT'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playSfx('click');
+                  toggleReducedMotion();
+                }}
+                className="exam-card-subtle py-2 px-2 flex flex-col items-center justify-center gap-1 text-[10px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
+                aria-label="Toggle calm motion"
+              >
+                <PixelIcon name="settings" size={15} />
+                <span>{reducedMotion ? 'CALM' : 'MOTION'}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Mobile Drawer */}
-      {mobileOpen && (
-        <div
-          className={`lg:hidden border-t px-4 py-3 grid grid-cols-2 gap-2 ${
-            isArcadeMode
-              ? 'bg-[var(--bg-panel)] border-[var(--border-pixel)]'
-              : 'bg-[var(--exam-surface)] border-[var(--exam-border)]'
-          }`}
-        >
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleNav(item.id)}
-              className={`text-left text-sm font-semibold py-2.5 px-3 rounded-lg border cursor-pointer ${
-                route === item.id
-                  ? 'bg-[var(--exam-accent-soft)] border-[var(--exam-accent)] text-[var(--exam-accent)]'
-                  : 'border-[var(--exam-border)] text-[var(--exam-text)]'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => handleNav('profile')}
-            className="text-left text-sm font-semibold py-2.5 px-3 rounded-lg border border-[var(--exam-border)] text-[var(--exam-text)] cursor-pointer"
-          >
-            Profile
-          </button>
-        </div>
-      )}
     </header>
   );
 };

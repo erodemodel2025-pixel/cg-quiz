@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Lightbulb, XCircle } from 'lucide-react';
+import { arcadeAudio } from '../../audio/arcadeAudio.ts';
 import type { ExamUserAnswer, QuestionType, SmartExplanation } from '../../../shared/types.ts';
+import { PixelIcon } from '../pixel/PixelArtAssets.tsx';
 
 interface SmartExplanationCardProps {
   isCorrect: boolean;
@@ -66,43 +67,40 @@ export const SmartExplanationCard: React.FC<SmartExplanationCardProps> = ({
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 font-bold text-sm">
+        <div className="flex items-center gap-2 font-pixel text-xs">
           {isCorrect ? (
-            <span className="text-[var(--exam-success)] flex items-center gap-1.5">
-              <CheckCircle2 size={18} /> CORRECT
+            <span className="text-[var(--exam-success)] flex items-center gap-2">
+              <PixelIcon name="check" size={16} /> CORRECT!
             </span>
           ) : isSkipped ? (
-            <span className="text-[var(--exam-warning)] flex items-center gap-1.5">
-              <AlertTriangle size={18} /> SKIPPED
+            <span className="text-[var(--exam-warning)] flex items-center gap-2">
+              <PixelIcon name="flag" size={15} /> SKIPPED
             </span>
           ) : (
-            <span className="text-[var(--exam-danger)] flex items-center gap-1.5">
-              <XCircle size={18} /> INCORRECT
+            <span className="text-[var(--exam-danger)] flex items-center gap-2">
+              <PixelIcon name="close" size={15} /> NOT QUITE
             </span>
           )}
         </div>
 
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="text-xs font-semibold text-[var(--exam-accent)] flex items-center gap-1 cursor-pointer"
+          onClick={() => {
+            arcadeAudio.playSfx('click');
+            setExpanded((v) => !v);
+          }}
+          className="font-display-pixel text-xs text-[var(--exam-accent)] hover:underline cursor-pointer"
         >
-          {expanded ? (
-            <>
-              Hide Breakdown <ChevronUp size={14} />
-            </>
-          ) : (
-            <>
-              Show Breakdown <ChevronDown size={14} />
-            </>
-          )}
+          {expanded ? 'Hide Explanation ▲' : 'Show Explanation ▼'}
         </button>
       </div>
 
-      {/* Concise Answer Comparison */}
+      {/* Answer Comparison */}
       <div className="grid sm:grid-cols-2 gap-2.5 text-xs sm:text-sm mb-3">
         <div className="exam-card-subtle px-3 py-2">
-          <span className="font-semibold text-[var(--exam-text-muted)]">YOUR ANSWER: </span>
+          <span className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+            YOUR PICK:{' '}
+          </span>
           <span
             className={`font-semibold ${
               isCorrect ? 'text-[var(--exam-success)]' : 'text-[var(--exam-danger)]'
@@ -112,7 +110,9 @@ export const SmartExplanationCard: React.FC<SmartExplanationCardProps> = ({
           </span>
         </div>
         <div className="exam-card-subtle px-3 py-2">
-          <span className="font-semibold text-[var(--exam-text-muted)]">CORRECT: </span>
+          <span className="font-display-pixel text-[11px] text-[var(--exam-text-muted)]">
+            ANSWER:{' '}
+          </span>
           <span className="font-semibold text-[var(--exam-success)]">
             {formatAnswerLabel(questionType, correctAnswer, options, matchRight)}
           </span>
@@ -120,28 +120,33 @@ export const SmartExplanationCard: React.FC<SmartExplanationCardProps> = ({
       </div>
 
       {expanded && (
-        <div className="space-y-2.5 text-sm pt-2 border-t border-[var(--exam-border)]">
+        <div className="space-y-2.5 text-sm pt-3 border-t-2 border-[var(--exam-border)]">
           <div>
-            <span className="font-bold text-[var(--exam-text)]">WHY: </span>
+            <span className="font-display-pixel text-xs font-bold text-[var(--exam-text)]">
+              WHY:{' '}
+            </span>
             <span className="text-[var(--exam-text-secondary)]">{explanation.why}</span>
           </div>
           <div>
-            <span className="font-bold text-[var(--exam-accent)]">CONCEPT: </span>
+            <span className="font-display-pixel text-xs font-bold text-[var(--exam-accent)]">
+              CONCEPT:{' '}
+            </span>
             <span className="text-[var(--exam-text-secondary)]">{explanation.concept}</span>
           </div>
           {explanation.commonTrap && (
-            <div className="bg-[var(--exam-warning-soft)] border border-[var(--exam-warning)]/40 rounded-md px-3 py-2 text-xs sm:text-sm">
-              <span className="font-bold text-[var(--exam-warning)]">COMMON TRAP: </span>
+            <div className="bg-[var(--exam-warning-soft)] border-2 border-[var(--exam-warning)] px-3 py-2 text-xs sm:text-sm">
+              <span className="font-display-pixel text-xs font-bold text-[var(--exam-warning)]">
+                WATCH OUT:{' '}
+              </span>
               <span className="text-[var(--exam-text)]">{explanation.commonTrap}</span>
             </div>
           )}
           {explanation.shortcut && (
-            <div className="bg-[var(--exam-accent-soft)] border border-[var(--exam-accent)]/40 rounded-md px-3 py-2 text-xs sm:text-sm flex items-start gap-2">
-              <Lightbulb size={15} className="text-[var(--exam-accent)] shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-[var(--exam-accent)]">QUICK TIP: </span>
-                <span className="text-[var(--exam-text)]">{explanation.shortcut}</span>
-              </div>
+            <div className="bg-[var(--exam-accent-soft)] border-2 border-[var(--exam-accent)] px-3 py-2 text-xs sm:text-sm">
+              <span className="font-display-pixel text-xs font-bold text-[var(--exam-accent)]">
+                QUICK TIP:{' '}
+              </span>
+              <span className="text-[var(--exam-text)]">{explanation.shortcut}</span>
             </div>
           )}
         </div>

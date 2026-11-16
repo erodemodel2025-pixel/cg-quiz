@@ -1,52 +1,70 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ArrowRight,
-  Award,
-  Flame,
-  Gamepad2,
-  Play,
-  ShieldCheck,
-  Target,
-  TrendingUp,
-  Volume2,
-  VolumeX,
-  Zap,
-} from 'lucide-react';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
 import { computeExamLevel } from '../../shared/progression.ts';
-import type {
-  AnalyticsSummary,
-  DailyExamStatus,
-  ExamSettings,
-  GameModeId,
-} from '../../shared/types.ts';
+import type { AnalyticsSummary, ExamSettings } from '../../shared/types.ts';
 import { loadActiveQuizDraft, type ActiveQuizDraft } from '../utils/storageMigration.ts';
+import {
+  PixelIcon,
+  PixelIllustration,
+  PixelLogo,
+  type PixelIllustrationName,
+} from '../components/pixel/PixelArtAssets.tsx';
 
 interface HomePageProps {
   onPlay: () => void;
   onStartExamPreset: (preset: Partial<ExamSettings>) => void;
   onResumeDraft: (draft: ActiveQuizDraft) => void;
-  onOpenMistakes: () => void;
+  onOpenHowToPlay: () => void;
   onOpenAnalytics: () => void;
-  onLaunchGame: (game: GameModeId) => void;
-  onLeaderboard: () => void;
-  onOpenRegister: () => void;
 }
+
+const FEATURED_CATEGORIES: Array<{
+  id: string;
+  title: string;
+  subtitle: string;
+  art: PixelIllustrationName;
+  accentColor: string;
+}> = [
+  {
+    id: 'science',
+    title: 'Science',
+    subtitle: 'Laws, atoms & discovery',
+    art: 'lab',
+    accentColor: '#22C55E',
+  },
+  {
+    id: 'cs',
+    title: 'Technology',
+    subtitle: 'Code, AI & systems',
+    art: 'computer',
+    accentColor: '#38BDF8',
+  },
+  {
+    id: 'gk',
+    title: 'General Knowledge',
+    subtitle: 'World, history & facts',
+    art: 'compass',
+    accentColor: '#FACC15',
+  },
+  {
+    id: 'engineering',
+    title: 'Engineering',
+    subtitle: 'Circuits, logic & design',
+    art: 'tools',
+    accentColor: '#A855F7',
+  },
+];
 
 export const HomePage: React.FC<HomePageProps> = ({
   onPlay,
   onStartExamPreset,
   onResumeDraft,
-  onOpenMistakes,
+  onOpenHowToPlay,
   onOpenAnalytics,
-  onLaunchGame,
-  onLeaderboard,
-  onOpenRegister,
 }) => {
-  const { examUserId, player, soundEnabled, toggleSound, setMusicMode } = useArcade();
+  const { examUserId, setMusicMode } = useArcade();
 
-  const [dailyStatus, setDailyStatus] = useState<DailyExamStatus | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [draft] = useState(() => loadActiveQuizDraft());
 
@@ -55,13 +73,6 @@ export const HomePage: React.FC<HomePageProps> = ({
   }, [setMusicMode]);
 
   useEffect(() => {
-    fetch(`/api/exam/daily-status?userId=${encodeURIComponent(examUserId)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d) setDailyStatus(d);
-      })
-      .catch(() => {});
-
     fetch(`/api/exam/analytics?userId=${encodeURIComponent(examUserId)}&range=7d`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -70,249 +81,154 @@ export const HomePage: React.FC<HomePageProps> = ({
       .catch(() => {});
   }, [examUserId]);
 
-  const recentAttempt = analytics?.recentAttempts?.[0] || null;
-  const topWeak = analytics?.weakTopics?.[0] || null;
   const levelInfo = computeExamLevel(analytics?.streaks.examXp ?? 0);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-6">
-      {/* Smart Minimal Hero */}
-      <section className="exam-card p-6 sm:p-9">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--exam-accent)]">
-            CGQUIZ · Competitive Quiz & Exam Platform
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => toggleSound()}
-              aria-label={soundEnabled ? 'Mute sound' : 'Enable sound'}
-              className="px-2.5 py-1.5 rounded-md border border-[var(--exam-border-strong)] text-xs font-medium text-[var(--exam-text-secondary)] flex items-center gap-1.5 cursor-pointer"
-            >
-              {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-              <span>{soundEnabled ? 'Audio On' : 'Muted'}</span>
-            </button>
-            {!player && (
-              <button
-                type="button"
-                onClick={onOpenRegister}
-                className="px-3 py-1.5 rounded-md border border-[var(--exam-border-strong)] text-xs font-semibold text-[var(--exam-text)] cursor-pointer"
-              >
-                Set Display Name
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-14 space-y-10">
+      {/* Focused Pixel Title-Screen Hero */}
+      <section className="exam-card px-6 py-9 sm:px-10 sm:py-12 text-center relative overflow-hidden">
+        {/* Corner decorative pixel rivets */}
+        <span className="hidden sm:block absolute top-3 left-3 w-2.5 h-2.5 bg-[var(--voxel-gold)] border border-[#0B0F1A]" />
+        <span className="hidden sm:block absolute top-3 right-3 w-2.5 h-2.5 bg-[var(--voxel-gold)] border border-[#0B0F1A]" />
+        <span className="hidden sm:block absolute bottom-3 left-3 w-2.5 h-2.5 bg-[var(--voxel-green)] border border-[#0B0F1A]" />
+        <span className="hidden sm:block absolute bottom-3 right-3 w-2.5 h-2.5 bg-[var(--voxel-green)] border border-[#0B0F1A]" />
 
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--exam-text)] mb-2">
-          Test your knowledge.
-        </h1>
-        <p className="text-sm sm:text-base text-[var(--exam-text-secondary)] max-w-xl mb-7">
-          Adaptive practice, full mock exams, smart mistake breakdowns, and real performance analytics across JEE, NEET, NDA, TNPSC, School, Science, and Engineering.
-        </p>
+        <div className="flex flex-col items-center">
+          <PixelLogo variant="hero" className="mb-4" />
 
-        {/* Primary Action Buttons */}
-        <div className="flex flex-wrap gap-3">
-          {draft && draft.questions?.length > 0 && (
-            <button
-              type="button"
-              onClick={() => onResumeDraft(draft)}
-              className="exam-btn exam-btn-primary px-5 text-sm"
-            >
-              <Play size={16} fill="currentColor" /> Continue Quiz ({draft.mode})
-            </button>
-          )}
+          <h1 className="font-display-pixel text-base sm:text-xl font-bold text-[var(--exam-text)] tracking-wide mb-2">
+            Learn. Play. Challenge yourself.
+          </h1>
 
+          <p className="text-sm sm:text-base text-[var(--exam-text-secondary)] max-w-md mb-7">
+            Jump into a fast 10-question adventure or pick a subject block below.
+          </p>
+
+          {/* ONE Large Primary Action Button */}
           <button
             type="button"
             onClick={() => {
-              arcadeAudio.playSfx('click');
+              arcadeAudio.playSfx('gameStart');
               onStartExamPreset({ mode: 'quick', questionCount: 10, timeLimitMinutes: 8 });
             }}
-            className={`exam-btn px-5 text-sm ${draft ? 'exam-btn-secondary' : 'exam-btn-primary'}`}
+            className="exam-btn exam-btn-primary px-8 sm:px-10 py-4 text-sm sm:text-base min-h-[54px]"
           >
-            <Zap size={16} /> Quick Quiz
+            <PixelIcon name="play" size={18} />
+            <span>START QUIZ</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              arcadeAudio.playSfx('click');
-              onStartExamPreset({
-                mode: 'daily',
-                questionCount: 10,
-                timeLimitMinutes: 8,
-              });
-            }}
-            disabled={Boolean(dailyStatus?.completed)}
-            className="exam-btn exam-btn-secondary px-5 text-sm"
-          >
-            <Award size={16} className="text-[var(--exam-warning)]" />
-            {dailyStatus?.completed ? 'Daily Done' : 'Daily Challenge'}
-          </button>
+          {/* Quiet Secondary Text Links */}
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-5 text-xs sm:text-sm font-display-pixel">
+            {draft && draft.questions?.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playSfx('click');
+                  onResumeDraft(draft);
+                }}
+                className="text-[var(--voxel-green)] hover:underline cursor-pointer"
+              >
+                Continue saved quiz ({draft.mode})
+              </button>
+            )}
 
-          <button
-            type="button"
-            onClick={() => {
-              arcadeAudio.playSfx('click');
-              onStartExamPreset({
-                mode: 'mock',
-                questionCount: 20,
-                timeLimitMinutes: 25,
-                negativeMarking: 1,
-              });
-            }}
-            className="exam-btn exam-btn-secondary px-5 text-sm"
-          >
-            <ShieldCheck size={16} className="text-[var(--exam-accent)]" /> Mock Test
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                arcadeAudio.playSfx('click');
+                onOpenHowToPlay();
+              }}
+              className="text-[var(--exam-accent)] hover:underline cursor-pointer"
+            >
+              How it works
+            </button>
+          </div>
+        </div>
+      </section>
 
+      {/* Clean Clickable Pixel-Art Category Blocks */}
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-pixel text-xs sm:text-sm text-[var(--exam-text)] tracking-wide">
+            CHOOSE A CATEGORY
+          </h2>
           <button
             type="button"
             onClick={() => {
               arcadeAudio.playSfx('click');
               onPlay();
             }}
-            className="exam-btn exam-btn-secondary px-4 text-sm"
+            className="font-display-pixel text-xs sm:text-sm text-[var(--exam-accent)] hover:underline cursor-pointer"
           >
-            All Modes <ArrowRight size={15} />
-          </button>
-        </div>
-      </section>
-
-      {/* 3 Compact Contextual Cards: Today's Progress, Recent Quiz, Weak Topic */}
-      <section className="grid md:grid-cols-3 gap-4">
-        <div className="exam-card p-5 flex flex-col justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--exam-text-muted)] mb-2 flex items-center justify-between">
-              <span>Today’s Progress</span>
-              <Flame size={15} className="text-[var(--exam-warning)]" />
-            </div>
-            <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-text)]">
-              {analytics?.streaks.dailyStreak ?? 0} Day Streak
-            </div>
-            <p className="text-xs text-[var(--exam-text-secondary)] mt-1">
-              {levelInfo.title} · {analytics?.streaks.examXp ?? 0} XP ·{' '}
-              {analytics?.hasData ? `${analytics.overallAccuracy}% 7d accuracy` : 'Start 1st quiz today'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenAnalytics}
-            className="text-xs font-semibold text-[var(--exam-accent)] flex items-center gap-1 mt-4 cursor-pointer hover:underline"
-          >
-            <TrendingUp size={13} /> View Analytics
+            All 14 categories &amp; modes →
           </button>
         </div>
 
-        <div className="exam-card p-5 flex flex-col justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--exam-text-muted)] mb-2">
-              Recent Quiz
-            </div>
-            {recentAttempt ? (
-              <>
-                <div className="text-xl font-bold font-code tabular-nums text-[var(--exam-text)]">
-                  {recentAttempt.score}/{recentAttempt.maxScore}{' '}
-                  <span className="text-sm font-medium text-[var(--exam-success)]">
-                    ({recentAttempt.accuracy}%)
-                  </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {FEATURED_CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => {
+                arcadeAudio.playSfx('click');
+                onStartExamPreset({
+                  mode: 'quick',
+                  categoryId: cat.id,
+                  questionCount: 10,
+                  timeLimitMinutes: 8,
+                });
+              }}
+              className="voxel-tile p-5 text-left flex sm:flex-col items-center sm:items-start gap-4 sm:gap-3 cursor-pointer group"
+            >
+              <div
+                className="w-14 h-14 border-3 border-[#0B0F1A] flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${cat.accentColor}22` }}
+              >
+                <PixelIllustration name={cat.art} size={42} />
+              </div>
+
+              <div className="min-w-0">
+                <div className="font-display-pixel text-sm sm:text-base font-bold text-[var(--exam-text)] group-hover:text-[var(--exam-accent)]">
+                  {cat.title}
                 </div>
-                <p className="text-xs text-[var(--exam-text-secondary)] mt-1 uppercase">
-                  {recentAttempt.mode} · {recentAttempt.subject === 'all' ? 'Mixed' : recentAttempt.subject}
+                <p className="text-xs sm:text-sm text-[var(--exam-text-secondary)] mt-0.5">
+                  {cat.subtitle}
                 </p>
-              </>
-            ) : (
-              <>
-                <div className="text-base font-bold text-[var(--exam-text)]">No quizzes yet</div>
-                <p className="text-xs text-[var(--exam-text-secondary)] mt-1">
-                  Your latest attempt score and accuracy will appear here.
-                </p>
-              </>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onOpenAnalytics}
-            className="text-xs font-semibold text-[var(--exam-accent)] flex items-center gap-1 mt-4 cursor-pointer hover:underline"
-          >
-            Quiz History <ArrowRight size={13} />
-          </button>
-        </div>
-
-        <div className="exam-card p-5 flex flex-col justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--exam-text-muted)] mb-2 flex items-center justify-between">
-              <span>Weak Topic Focus</span>
-              <Target size={15} className="text-[var(--exam-warning)]" />
-            </div>
-            {topWeak ? (
-              <>
-                <div className="text-base font-bold text-[var(--exam-text)]">{topWeak.topic}</div>
-                <p className="text-xs text-[var(--exam-text-secondary)] mt-1">
-                  {topWeak.subject} · {topWeak.accuracy}% accuracy
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="text-base font-bold text-[var(--exam-text)]">Mistake Book Ready</div>
-                <p className="text-xs text-[var(--exam-text-secondary)] mt-1">
-                  Missed questions are saved automatically for targeted revision.
-                </p>
-              </>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              topWeak
-                ? onStartExamPreset({
-                    mode: 'weak',
-                    subject: topWeak.subject,
-                    questionCount: 10,
-                  })
-                : onOpenMistakes()
-            }
-            className="text-xs font-semibold text-[var(--exam-accent)] flex items-center gap-1 mt-4 cursor-pointer hover:underline"
-          >
-            {topWeak ? `Practice ${topWeak.topic}` : 'Open My Mistakes'} <ArrowRight size={13} />
-          </button>
+              </div>
+            </button>
+          ))}
         </div>
       </section>
 
-      {/* Preserved Arcade & Leaderboard Compact Footer Strip */}
-      <section className="exam-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[var(--exam-accent-soft)] text-[var(--exam-accent)] flex items-center justify-center shrink-0">
-            <Gamepad2 size={20} />
+      {/* Subtle Single-Line Player HUD Ticker (Only when user has played, zero clutter) */}
+      {analytics?.hasData && (
+        <div className="exam-card-subtle px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+          <div className="flex flex-wrap items-center gap-4 font-display-pixel">
+            <span className="flex items-center gap-1.5 text-[var(--voxel-gold)]">
+              <PixelIcon name="trophy" size={14} />
+              {levelInfo.title}
+            </span>
+            <span className="flex items-center gap-1.5 text-[var(--voxel-green)]">
+              <PixelIcon name="flame" size={14} />
+              {analytics.streaks.dailyStreak}d Streak
+            </span>
+            <span className="text-[var(--exam-text-secondary)] font-code">
+              {analytics.overallAccuracy}% Accuracy
+            </span>
           </div>
-          <div>
-            <div className="text-sm font-bold text-[var(--exam-text)]">
-              Engineering Arcade · 6 Interactive Mini-Games
-            </div>
-            <div className="text-xs text-[var(--exam-text-secondary)]">
-              Circuit Rush · Code Breaker · Boss Battle · Logic Lab · Component Match · IQ Quiz
-            </div>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => onLaunchGame('circuit-rush')}
-            className="exam-btn exam-btn-secondary text-xs min-h-[38px] py-2"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              onOpenAnalytics();
+            }}
+            className="font-display-pixel text-xs text-[var(--exam-accent)] hover:underline cursor-pointer"
           >
-            Play Arcade
-          </button>
-          <button
-            type="button"
-            onClick={onLeaderboard}
-            className="exam-btn exam-btn-secondary text-xs min-h-[38px] py-2"
-          >
-            Rankings
+            View Progress →
           </button>
         </div>
-      </section>
+      )}
     </div>
   );
 };

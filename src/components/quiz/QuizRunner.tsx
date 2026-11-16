@@ -1,19 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  Flag,
-  Heart,
-  LayoutGrid,
-  ShieldAlert,
-  Timer,
-  X,
-} from 'lucide-react';
 import { soundManager } from '../../audio/SoundManager.ts';
+import { arcadeAudio } from '../../audio/arcadeAudio.ts';
 import { useArcade } from '../../context/ArcadeContext.tsx';
-import { saveActiveQuizDraft, updateOfflineCache, readOfflineCache, type ActiveQuizDraft } from '../../utils/storageMigration.ts';
+import {
+  saveActiveQuizDraft,
+  updateOfflineCache,
+  readOfflineCache,
+  type ActiveQuizDraft,
+} from '../../utils/storageMigration.ts';
 import type {
   ExamAnswerItem,
   ExamDifficulty,
@@ -23,6 +17,7 @@ import type {
   PublicExamQuestion,
   SmartExplanation,
 } from '../../../shared/types.ts';
+import { PixelIcon, PixelIllustration, PixelLoader } from '../pixel/PixelArtAssets.tsx';
 import { QuestionRenderer } from './QuestionRenderer.tsx';
 import { SmartExplanationCard } from './SmartExplanationCard.tsx';
 import { QuizResultsView } from './QuizResultsView.tsx';
@@ -32,6 +27,7 @@ interface QuizRunnerProps {
   customQuestionIds?: string[];
   initialDraft?: ActiveQuizDraft | null;
   onExit: () => void;
+  onPlayAgain: () => void;
   onRetryWrongIds: (wrongIds: string[]) => void;
   onPracticeSimilar: (preset: Partial<ExamSettings>) => void;
   onViewAnalytics: () => void;
@@ -48,6 +44,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
   customQuestionIds,
   initialDraft,
   onExit,
+  onPlayAgain,
   onRetryWrongIds,
   onPracticeSimilar,
   onViewAnalytics,
@@ -267,7 +264,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
     return () => window.clearInterval(id);
   }, [loading, questions.length, result, submitQuiz]);
 
-  // Mock Test Anti-Cheat: beforeunload + visibilitychange + fullscreenchange
+  // Mock Test Anti-Cheat
   useEffect(() => {
     if (loading || result || !isExamMode) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -278,7 +275,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
       if (document.hidden) {
         setTabSwitches((c) => {
           const next = c + 1;
-          setAntiCheatNotice(`Tab switch detected (${next}). Stay inside the exam window.`);
+          setAntiCheatNotice(`Tab switch detected (${next}). Stay inside the quiz window.`);
           return next;
         });
       }
@@ -301,16 +298,17 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
   const currentQ = questions[currentIndex];
   const currentCheck = currentQ ? checkedFeedback[currentQ.id] : undefined;
 
+  const hasCurrentAnswer = Boolean(
+    currentQ &&
+      answers[currentQ.id] !== undefined &&
+      answers[currentQ.id] !== null &&
+      answers[currentQ.id] !== '' &&
+      (!Array.isArray(answers[currentQ.id]) || (answers[currentQ.id] as number[]).length > 0)
+  );
+
   const handleCheckAnswer = async () => {
-    if (!currentQ || !isImmediateMode || currentCheck) return;
+    if (!currentQ || !isImmediateMode || currentCheck || !hasCurrentAnswer) return;
     const userAns = answers[currentQ.id] ?? null;
-    if (
-      userAns === null ||
-      userAns === '' ||
-      (Array.isArray(userAns) && userAns.length === 0)
-    ) {
-      return;
-    }
 
     const updatedTimes = recordQuestionTime();
     try {
@@ -361,12 +359,12 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
 
   const goToQuestion = (nextIdx: number) => {
     if (nextIdx < 0 || nextIdx >= questions.length) return;
+    arcadeAudio.playSfx('click');
     recordQuestionTime();
     setCurrentIndex(nextIdx);
     setPaletteOpen(false);
   };
 
-  // Keyboard shortcuts (ArrowLeft / ArrowRight)
   useEffect(() => {
     if (loading || result) return;
     const onKey = (e: KeyboardEvent) => {
@@ -387,6 +385,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
     return (
       <QuizResultsView
         result={result}
+        onPlayAgain={onPlayAgain}
         onRetryWrong={(wrongIds) => onRetryWrongIds(wrongIds)}
         onPracticeSimilar={onPracticeSimilar}
         onBackToStudio={onExit}
@@ -397,11 +396,9 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-12">
+      <div className="max-w-2xl mx-auto px-4 py-12">
         <div className="exam-card p-8 text-center">
-          <div className="text-sm font-semibold text-[var(--exam-text-muted)]">
-            Preparing your quiz session...
-          </div>
+          <PixelLoader label="BUILDING QUIZ BLOCKS..." />
         </div>
       </div>
     );
@@ -409,21 +406,19 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
 
   if (errorMsg || !currentQ) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12">
-        <div className="exam-card p-6 sm:p-8 text-center">
-          <AlertTriangle size={34} className="mx-auto text-[var(--exam-warning)] mb-3" />
-          <h2 className="text-lg font-bold text-[var(--exam-text)] mb-2">
-            {errorMsg || 'Unable to load questions for this selection.'}
-          </h2>
-          <p className="text-sm text-[var(--exam-text-secondary)] mb-5">
-            Adjust your filters or try another mode.
+      <div className="max-w-md mx-auto px-4 py-12">
+        <div className="exam-card p-6 sm:p-8 text-center space-y-4">
+          <PixelIllustration name="oops" size={56} className="mx-auto" />
+          <h2 className="font-pixel text-sm text-[var(--exam-text)]">OOPS!</h2>
+          <p className="text-sm text-[var(--exam-text-secondary)]">
+            {errorMsg || 'Something went wrong loading questions for this mode.'}
           </p>
-          <div className="flex justify-center gap-3">
+          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
             <button type="button" onClick={() => void startSession()} className="exam-btn exam-btn-primary text-sm">
-              Retry
+              TRY AGAIN
             </button>
             <button type="button" onClick={onExit} className="exam-btn exam-btn-secondary text-sm">
-              Go Back
+              Back
             </button>
           </div>
         </div>
@@ -444,104 +439,132 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
     return true;
   }).length;
 
-  const progressPct = Math.round(((currentIndex + 1) / questions.length) * 100);
+  const isLast = currentIndex + 1 >= questions.length;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-28 sm:pb-10">
-      {/* Top Quiz / Exam HUD Bar */}
-      <div className="exam-card p-3.5 sm:p-4 mb-4 flex flex-wrap items-center justify-between gap-3 sticky top-16 z-30">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onExit}
-            aria-label="Exit quiz"
-            className="p-2 rounded-md border border-[var(--exam-border-strong)] text-[var(--exam-text-secondary)] hover:text-[var(--exam-text)] cursor-pointer"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--exam-accent)]">
-              {initialSettings.mode === 'mock' ? 'MOCK EXAM HALL' : `${initialSettings.mode.toUpperCase()} QUIZ`}
-              {initialSettings.difficulty === 'Adaptive' ? ` · Adaptive (${adaptiveDiff})` : ''}
-            </div>
-            <div className="text-sm font-bold text-[var(--exam-text)] font-code tabular-nums">
-              Question {currentIndex + 1} / {questions.length} · {answeredCount} Answered
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {initialSettings.mode === 'survival' && (
-            <div className="flex items-center gap-1 text-[var(--exam-danger)] font-code text-sm font-bold">
-              {[0, 1, 2].map((i) => (
-                <Heart
-                  key={i}
-                  size={16}
-                  fill={i < lives ? 'currentColor' : 'none'}
-                  className={i < lives ? '' : 'opacity-30'}
-                />
-              ))}
-            </div>
-          )}
-
-          <div
-            className={`px-3 py-1.5 rounded-md border font-code text-sm font-bold flex items-center gap-1.5 tabular-nums ${
-              timeLeft <= 60
-                ? 'bg-[var(--exam-danger-soft)] border-[var(--exam-danger)] text-[var(--exam-danger)]'
-                : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border-strong)] text-[var(--exam-text)]'
-            }`}
-          >
-            <Timer size={15} /> {formatTimer(timeLeft)}
-          </div>
-
-          {isExamMode && (
+    <div className={`${isExamMode ? 'max-w-6xl' : 'max-w-3xl'} mx-auto px-4 sm:px-6 py-5 sm:py-7 pb-24 sm:pb-10`}>
+      {/* Compact Pixel Quiz HUD Bar */}
+      <div className="exam-card p-3.5 sm:p-4 mb-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setPaletteOpen((v) => !v)}
-              className="lg:hidden exam-btn exam-btn-secondary px-3 py-2 text-xs min-h-[38px]"
+              onClick={() => {
+                arcadeAudio.playSfx('click');
+                onExit();
+              }}
+              aria-label="Exit quiz"
+              className="exam-btn exam-btn-secondary px-3 py-1.5 min-h-[38px] text-xs"
             >
-              <LayoutGrid size={15} /> Palette
+              ← EXIT
             </button>
-          )}
+            <div>
+              <div className="font-display-pixel text-xs font-bold text-[var(--exam-accent)] uppercase">
+                {initialSettings.mode === 'mock' ? 'MOCK EXAM' : `${initialSettings.mode} QUIZ`}
+                {initialSettings.difficulty === 'Adaptive' ? ` · ${adaptiveDiff}` : ''}
+              </div>
+              <div className="font-code text-xs sm:text-sm font-bold text-[var(--exam-text)] tabular-nums">
+                Question {currentIndex + 1} / {questions.length}
+              </div>
+            </div>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setConfirmSubmitOpen(true)}
-            disabled={submitting}
-            className="exam-btn exam-btn-primary px-4 py-2 text-xs sm:text-sm min-h-[38px]"
-          >
-            {submitting ? 'Submitting...' : 'Submit'}
-          </button>
+          <div className="flex items-center gap-2.5">
+            {initialSettings.mode === 'survival' && (
+              <div className="flex items-center gap-1 text-[var(--exam-danger)] px-2 py-1 border-2 border-[var(--exam-border)] bg-[var(--exam-surface-alt)]">
+                {[0, 1, 2].map((i) => (
+                  <span key={i} className={i < lives ? '' : 'opacity-25'}>
+                    <PixelIcon name="heart" size={14} />
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div
+              className={`px-3 py-1.5 border-2 font-code text-xs sm:text-sm font-bold flex items-center gap-1.5 tabular-nums ${
+                timeLeft <= 60
+                  ? 'bg-[var(--exam-danger-soft)] border-[var(--exam-danger)] text-[var(--exam-danger)]'
+                  : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text)]'
+              }`}
+            >
+              <PixelIcon name="timer" size={14} /> {formatTimer(timeLeft)}
+            </div>
+
+            {isExamMode && (
+              <button
+                type="button"
+                onClick={() => setPaletteOpen((v) => !v)}
+                className="lg:hidden exam-btn exam-btn-secondary px-3 py-1.5 text-xs min-h-[38px]"
+              >
+                Palette
+              </button>
+            )}
+
+            {(isExamMode || answeredCount > 0) && (
+              <button
+                type="button"
+                onClick={() => setConfirmSubmitOpen(true)}
+                disabled={submitting}
+                className="exam-btn exam-btn-gold px-3.5 py-1.5 text-xs min-h-[38px]"
+              >
+                {submitting ? '...' : 'FINISH'}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Progress Bar */}
-      <div className="h-1.5 bg-[var(--exam-surface-alt)] rounded-full overflow-hidden mb-5">
+        {/* Segmented Block Progress Bar */}
         <div
-          className="h-full bg-[var(--exam-accent)] transition-all duration-200"
-          style={{ width: `${progressPct}%` }}
-        />
+          className="flex gap-1"
+          role="progressbar"
+          aria-valuenow={currentIndex + 1}
+          aria-valuemin={1}
+          aria-valuemax={questions.length}
+        >
+          {questions.map((q, idx) => {
+            const isPastOrCurrent = idx <= currentIndex;
+            const hasAns =
+              answers[q.id] !== undefined &&
+              answers[q.id] !== null &&
+              answers[q.id] !== '' &&
+              (!Array.isArray(answers[q.id]) || (answers[q.id] as number[]).length > 0);
+            const checked = checkedFeedback[q.id];
+
+            let bg = 'bg-[var(--exam-surface-alt)]';
+            if (checked) {
+              bg = checked.correct ? 'bg-[var(--exam-success)]' : 'bg-[var(--exam-danger)]';
+            } else if (idx === currentIndex) {
+              bg = 'bg-[var(--voxel-gold)]';
+            } else if (hasAns || isPastOrCurrent) {
+              bg = 'bg-[var(--voxel-green)]';
+            }
+
+            return (
+              <div
+                key={q.id}
+                className={`h-2.5 flex-1 border border-[#0B0F1A] transition-colors ${bg}`}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* Anti-Cheat Notice (Mock/Timed) */}
       {antiCheatNotice && isExamMode && (
-        <div className="mb-4 px-4 py-2.5 rounded-lg bg-[var(--exam-warning-soft)] border border-[var(--exam-warning)] text-xs sm:text-sm flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2 font-medium text-[var(--exam-text)]">
-            <ShieldAlert size={16} className="text-[var(--exam-warning)] shrink-0" />
-            {antiCheatNotice}
-          </span>
+        <div className="mb-4 px-4 py-2.5 border-2 bg-[var(--exam-warning-soft)] border-[var(--exam-warning)] text-xs sm:text-sm flex items-center justify-between gap-2">
+          <span className="font-medium text-[var(--exam-text)]">{antiCheatNotice}</span>
           <button
             type="button"
             onClick={() => setAntiCheatNotice(null)}
             className="text-[var(--exam-text-muted)] cursor-pointer"
           >
-            <X size={15} />
+            <PixelIcon name="close" size={14} />
           </button>
         </div>
       )}
 
-      {/* Main Split Workspace: Question on left + Optional Mock Question Palette on right */}
-      <div className={`grid gap-6 ${isExamMode ? 'lg:grid-cols-[1fr_280px]' : ''}`}>
+      {/* Main Question Workspace */}
+      <div className={`grid gap-6 ${isExamMode ? 'lg:grid-cols-[1fr_260px]' : ''}`}>
         <div className="space-y-4">
           <QuestionRenderer
             question={currentQ}
@@ -556,40 +579,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
             onToggleBookmark={() => void toggleBookmark(currentQ.id)}
           />
 
-          {/* Immediate Feedback Check Action */}
-          {isImmediateMode && !currentCheck && (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setMarkedReview((prev) => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }))
-                }
-                className={`exam-btn exam-btn-secondary text-xs sm:text-sm ${
-                  markedReview[currentQ.id] ? 'border-[var(--exam-warning)] text-[var(--exam-warning)]' : ''
-                }`}
-              >
-                <Flag size={15} />
-                {markedReview[currentQ.id] ? 'Marked for Review' : 'Mark for Review'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void handleCheckAnswer()}
-                disabled={
-                  answers[currentQ.id] === undefined ||
-                  answers[currentQ.id] === null ||
-                  answers[currentQ.id] === '' ||
-                  (Array.isArray(answers[currentQ.id]) &&
-                    (answers[currentQ.id] as number[]).length === 0)
-                }
-                className="exam-btn exam-btn-primary text-sm px-6"
-              >
-                <CheckCircle2 size={16} /> Check Answer
-              </button>
-            </div>
-          )}
-
-          {/* Smart Explanation Card (ONLY after submission/check in immediate modes) */}
+          {/* Smart Explanation Card (ONLY after check in immediate modes) */}
           {currentCheck && (
             <SmartExplanationCard
               isCorrect={currentCheck.correct}
@@ -603,50 +593,61 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
             />
           )}
 
-          {/* Desktop Navigation Row */}
-          <div className="hidden sm:flex items-center justify-between gap-3 pt-2">
-            <button
-              type="button"
-              disabled={currentIndex === 0}
-              onClick={() => goToQuestion(currentIndex - 1)}
-              className="exam-btn exam-btn-secondary text-sm"
-            >
-              <ArrowLeft size={16} /> Previous
-            </button>
-
+          {/* Minimal Action Footer (1 Primary Action + Quiet Secondary Controls) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-3">
-              {isExamMode && (
+              {currentIndex > 0 && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setMarkedReview((prev) => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }))
-                  }
-                  className={`exam-btn exam-btn-secondary text-sm ${
-                    markedReview[currentQ.id]
-                      ? 'border-[var(--exam-warning)] text-[var(--exam-warning)]'
-                      : ''
-                  }`}
+                  onClick={() => goToQuestion(currentIndex - 1)}
+                  className="exam-btn exam-btn-secondary text-xs sm:text-sm px-4"
                 >
-                  <Flag size={15} />
-                  {markedReview[currentQ.id] ? 'Marked' : 'Mark for Review'}
+                  ← Prev
                 </button>
               )}
 
-              {currentIndex + 1 < questions.length ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setMarkedReview((prev) => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }))
+                }
+                className={`font-display-pixel text-xs flex items-center gap-1.5 cursor-pointer px-2 py-1.5 ${
+                  markedReview[currentQ.id]
+                    ? 'text-[var(--exam-warning)]'
+                    : 'text-[var(--exam-text-muted)] hover:text-[var(--exam-text)]'
+                }`}
+              >
+                <PixelIcon name="flag" size={13} />
+                <span>{markedReview[currentQ.id] ? 'Marked' : 'Mark'}</span>
+              </button>
+            </div>
+
+            <div>
+              {isImmediateMode && !currentCheck ? (
+                <button
+                  type="button"
+                  onClick={() => void handleCheckAnswer()}
+                  disabled={!hasCurrentAnswer}
+                  className="exam-btn exam-btn-primary text-sm px-7"
+                >
+                  CHECK ANSWER
+                </button>
+              ) : !isLast ? (
                 <button
                   type="button"
                   onClick={() => goToQuestion(currentIndex + 1)}
-                  className="exam-btn exam-btn-primary text-sm"
+                  className="exam-btn exam-btn-primary text-sm px-7"
                 >
-                  Next <ArrowRight size={16} />
+                  NEXT →
                 </button>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setConfirmSubmitOpen(true)}
-                  className="exam-btn exam-btn-primary text-sm"
+                  onClick={() => void submitQuiz()}
+                  disabled={submitting}
+                  className="exam-btn exam-btn-primary text-sm px-7"
                 >
-                  Finish & Review
+                  {submitting ? 'GRADING...' : 'COMPLETE QUIZ'}
                 </button>
               )}
             </div>
@@ -656,9 +657,9 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
         {/* Mock / Timed Exam Question Palette */}
         {isExamMode && (
           <aside className={`${paletteOpen ? 'block' : 'hidden'} lg:block`}>
-            <div className="exam-card p-4 sticky top-36">
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--exam-text-muted)] mb-3">
-                Question Palette
+            <div className="exam-card p-4 sticky top-20">
+              <div className="font-display-pixel text-xs text-[var(--exam-text-muted)] mb-3">
+                QUESTION PALETTE
               </div>
               <div className="grid grid-cols-5 gap-2 mb-4">
                 {questions.map((q, idx) => {
@@ -672,7 +673,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
                   const isCurr = idx === currentIndex;
 
                   let cls =
-                    'bg-[var(--exam-surface-alt)] border-[var(--exam-border-strong)] text-[var(--exam-text-secondary)]';
+                    'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-secondary)]';
                   if (isRev) {
                     cls =
                       'bg-[var(--exam-warning-soft)] border-[var(--exam-warning)] text-[var(--exam-warning)]';
@@ -681,7 +682,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
                       'bg-[var(--exam-success-soft)] border-[var(--exam-success)] text-[var(--exam-success)]';
                   }
                   if (isCurr) {
-                    cls += ' ring-2 ring-[var(--exam-accent)]';
+                    cls += ' ring-2 ring-[var(--voxel-gold)]';
                   }
 
                   return (
@@ -689,7 +690,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
                       key={q.id}
                       type="button"
                       onClick={() => goToQuestion(idx)}
-                      className={`h-10 rounded-md border font-code text-xs font-bold cursor-pointer ${cls}`}
+                      className={`h-10 border-2 font-code text-xs font-bold cursor-pointer ${cls}`}
                     >
                       {idx + 1}
                     </button>
@@ -697,11 +698,11 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
                 })}
               </div>
 
-              <div className="space-y-1.5 text-xs text-[var(--exam-text-muted)] border-t border-[var(--exam-border)] pt-3">
-                <div>Green = Answered · Amber = Review · Gray = Unvisited</div>
+              <div className="space-y-1 text-xs text-[var(--exam-text-muted)] border-t-2 border-[var(--exam-border)] pt-3">
+                <div>Green = Done · Gold = Marked</div>
                 {initialSettings.negativeMarking > 0 && (
                   <div className="text-[var(--exam-warning)] font-medium">
-                    Marking: +4 correct / −{initialSettings.negativeMarking} wrong
+                    Marking: +4 / −{initialSettings.negativeMarking}
                   </div>
                 )}
               </div>
@@ -710,53 +711,10 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
         )}
       </div>
 
-      {/* Mobile Sticky Bottom Controls */}
-      <div className="sm:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--exam-surface)] border-t border-[var(--exam-border)] px-3 py-2.5 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          disabled={currentIndex === 0}
-          onClick={() => goToQuestion(currentIndex - 1)}
-          className="exam-btn exam-btn-secondary px-3 text-xs flex-1"
-        >
-          <ArrowLeft size={14} /> Prev
-        </button>
-
-        <button
-          type="button"
-          onClick={() =>
-            setMarkedReview((prev) => ({ ...prev, [currentQ.id]: !prev[currentQ.id] }))
-          }
-          className={`exam-btn exam-btn-secondary px-3 text-xs ${
-            markedReview[currentQ.id] ? 'border-[var(--exam-warning)] text-[var(--exam-warning)]' : ''
-          }`}
-          aria-label="Mark for review"
-        >
-          <Flag size={14} />
-        </button>
-
-        {currentIndex + 1 < questions.length ? (
-          <button
-            type="button"
-            onClick={() => goToQuestion(currentIndex + 1)}
-            className="exam-btn exam-btn-primary px-4 text-xs flex-1"
-          >
-            Next <ArrowRight size={14} />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmSubmitOpen(true)}
-            className="exam-btn exam-btn-primary px-4 text-xs flex-1"
-          >
-            Submit
-          </button>
-        )}
-      </div>
-
       {/* Submit Confirmation Modal */}
       {confirmSubmitOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
           onClick={() => setConfirmSubmitOpen(false)}
         >
           <div
@@ -765,7 +723,7 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
             role="dialog"
             aria-modal="true"
           >
-            <h3 className="text-lg font-bold text-[var(--exam-text)]">Submit Quiz?</h3>
+            <h3 className="font-pixel text-sm text-[var(--exam-text)]">FINISH QUIZ?</h3>
             <p className="text-sm text-[var(--exam-text-secondary)]">
               You have answered <strong>{answeredCount}</strong> of{' '}
               <strong>{questions.length}</strong> questions.
@@ -777,17 +735,17 @@ export const QuizRunner: React.FC<QuizRunnerProps> = ({
               <button
                 type="button"
                 onClick={() => setConfirmSubmitOpen(false)}
-                className="exam-btn exam-btn-secondary flex-1 text-sm"
+                className="exam-btn exam-btn-secondary flex-1 text-xs"
               >
-                Continue Quiz
+                Keep Playing
               </button>
               <button
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitQuiz()}
-                className="exam-btn exam-btn-primary flex-1 text-sm"
+                className="exam-btn exam-btn-primary flex-1 text-xs"
               >
-                {submitting ? 'Grading...' : 'Confirm Submit'}
+                {submitting ? 'Grading...' : 'Submit Now'}
               </button>
             </div>
           </div>

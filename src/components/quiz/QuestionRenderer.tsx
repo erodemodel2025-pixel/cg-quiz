@@ -1,6 +1,7 @@
 import React from 'react';
-import { Bookmark, Check, CheckSquare, Square } from 'lucide-react';
+import { arcadeAudio } from '../../audio/arcadeAudio.ts';
 import type { ExamUserAnswer, PublicExamQuestion } from '../../../shared/types.ts';
+import { PixelIcon } from '../pixel/PixelArtAssets.tsx';
 
 interface QuestionRendererProps {
   question: PublicExamQuestion;
@@ -39,25 +40,26 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
     const isWrongChosen = revealed && isSelected && !isCorrectOption;
 
     let styleClass =
-      'bg-[var(--exam-surface)] border-[var(--exam-border-strong)] text-[var(--exam-text)] hover:border-[var(--exam-accent)]';
+      'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text)] hover:border-[var(--exam-accent)]';
     if (isSelected && !revealed) {
       styleClass =
-        'bg-[var(--exam-accent-soft)] border-[var(--exam-accent)] text-[var(--exam-text)] ring-2 ring-[var(--exam-accent)]/25';
+        'bg-[var(--exam-accent-soft)] border-[var(--voxel-gold)] text-[var(--exam-text)] ring-2 ring-[var(--voxel-gold)]';
     } else if (revealed) {
       if (isCorrectOption) {
         styleClass =
-          'bg-[var(--exam-success-soft)] border-[var(--exam-success)] text-[var(--exam-text)]';
+          'bg-[var(--exam-success-soft)] border-[var(--exam-success)] text-[var(--exam-text)] animate-pixel-pop';
       } else if (isWrongChosen) {
         styleClass =
-          'bg-[var(--exam-danger-soft)] border-[var(--exam-danger)] text-[var(--exam-text)]';
+          'bg-[var(--exam-danger-soft)] border-[var(--exam-danger)] text-[var(--exam-text)] animate-pixel-shake';
       } else {
         styleClass =
-          'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-muted)]';
+          'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-muted)] opacity-75';
       }
     }
 
     const handleClick = () => {
       if (disabled) return;
+      arcadeAudio.playSfx('click');
       if (isMulti) {
         const next = isSelected
           ? selectedArr.filter((i) => i !== idx)
@@ -75,79 +77,84 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
         disabled={disabled}
         onClick={handleClick}
         aria-pressed={isSelected}
-        className={`w-full min-h-[52px] px-4 py-3.5 rounded-lg border text-left flex items-center gap-3.5 transition-colors cursor-pointer disabled:cursor-default ${styleClass}`}
+        className={`voxel-tile w-full min-h-[56px] px-4 py-3.5 text-left flex items-center gap-3.5 cursor-pointer disabled:cursor-default ${styleClass}`}
       >
-        {isMulti ? (
-          <span className="shrink-0 text-[var(--exam-accent)]">
-            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-          </span>
-        ) : (
-          <span
-            className={`w-8 h-8 rounded-md border flex items-center justify-center font-code text-xs font-bold shrink-0 ${
-              isSelected && !revealed
-                ? 'bg-[var(--exam-accent)] text-white border-[var(--exam-accent)]'
-                : isCorrectOption
-                  ? 'bg-[var(--exam-success)] text-white border-[var(--exam-success)]'
-                  : isWrongChosen
-                    ? 'bg-[var(--exam-danger)] text-white border-[var(--exam-danger)]'
-                    : 'bg-[var(--exam-surface-alt)] text-[var(--exam-text-secondary)] border-[var(--exam-border-strong)]'
-            }`}
-          >
-            {OPTION_LETTERS[idx] ?? idx + 1}
-          </span>
-        )}
+        <span
+          className={`w-9 h-9 border-2 flex items-center justify-center font-pixel text-xs shrink-0 ${
+            isSelected && !revealed
+              ? 'bg-[var(--voxel-gold)] text-[#0B0F1A] border-[#0B0F1A]'
+              : isCorrectOption
+                ? 'bg-[var(--exam-success)] text-[#07120C] border-[#0B0F1A]'
+                : isWrongChosen
+                  ? 'bg-[var(--exam-danger)] text-white border-[#0B0F1A]'
+                  : 'bg-[var(--exam-surface)] text-[var(--exam-text)] border-[var(--exam-border)]'
+          }`}
+        >
+          {OPTION_LETTERS[idx] ?? idx + 1}
+        </span>
 
-        <span className="flex-1 text-sm sm:text-base font-medium leading-snug">{opt}</span>
+        <span className="flex-1 text-sm sm:text-base font-semibold leading-snug">{opt}</span>
 
         {isSelected && !revealed && (
-          <Check size={16} className="text-[var(--exam-accent)] shrink-0" />
+          <span className="text-[var(--voxel-gold)] shrink-0">
+            <PixelIcon name="check" size={16} />
+          </span>
         )}
       </button>
     );
   };
 
   return (
-    <div className="exam-card p-5 sm:p-6">
+    <div className="exam-card p-5 sm:p-7">
       {/* Compact Metadata Header */}
       <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="text-xs font-medium text-[var(--exam-text-muted)]">
-          <span>{question.subject}</span>
-          <span> · {question.chapter}</span>
-          <span> · {question.difficulty}</span>
-          <span> · {question.source}{question.year ? ` ${question.year}` : ''}</span>
+        <div className="flex flex-wrap items-center gap-2 text-xs font-display-pixel">
+          <span className="px-2 py-0.5 bg-[var(--exam-accent-soft)] border-2 border-[var(--exam-border)] text-[var(--exam-accent)]">
+            {question.subject}
+          </span>
+          <span className="text-[var(--exam-text-muted)]">
+            {question.chapter} · {question.difficulty}
+          </span>
         </div>
 
         {onToggleBookmark && (
           <button
             type="button"
-            onClick={onToggleBookmark}
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              onToggleBookmark();
+            }}
             aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark question'}
-            className={`p-2 rounded-md border text-xs flex items-center gap-1.5 cursor-pointer shrink-0 ${
+            className={`px-2.5 py-1.5 border-2 font-display-pixel text-xs flex items-center gap-1.5 cursor-pointer shrink-0 ${
               isBookmarked
                 ? 'bg-[var(--exam-warning-soft)] border-[var(--exam-warning)] text-[var(--exam-warning)]'
-                : 'border-[var(--exam-border-strong)] text-[var(--exam-text-muted)] hover:text-[var(--exam-text)]'
+                : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-muted)] hover:text-[var(--exam-text)]'
             }`}
           >
-            <Bookmark size={14} fill={isBookmarked ? 'currentColor' : 'none'} />
-            <span className="hidden sm:inline">{isBookmarked ? 'Saved' : 'Save'}</span>
+            <PixelIcon name="bookmark" size={13} />
+            <span className="hidden sm:inline">{isBookmarked ? 'SAVED' : 'SAVE'}</span>
           </button>
         )}
       </div>
 
-      {/* Question Prompt */}
-      <h2 className="text-base sm:text-lg font-semibold text-[var(--exam-text)] leading-relaxed mb-4">
+      {/* Highly Readable Question Prompt */}
+      <h2 className="text-lg sm:text-xl font-bold text-[var(--exam-text)] leading-relaxed mb-5">
         {question.question}
       </h2>
 
       {/* Assertion / Reason Block */}
       {question.questionType === 'assertion_reason' && (
-        <div className="exam-card-subtle p-4 mb-5 space-y-2.5 text-sm">
+        <div className="exam-card-subtle p-4 mb-5 space-y-2.5 text-sm sm:text-base">
           <div>
-            <span className="font-bold text-[var(--exam-accent)]">Assertion (A): </span>
+            <span className="font-display-pixel text-xs font-bold text-[var(--exam-accent)] mr-2">
+              ASSERTION (A):
+            </span>
             <span className="text-[var(--exam-text)]">{question.assertion}</span>
           </div>
           <div>
-            <span className="font-bold text-[var(--exam-warning)]">Reason (R): </span>
+            <span className="font-display-pixel text-xs font-bold text-[var(--exam-warning)] mr-2">
+              REASON (R):
+            </span>
             <span className="text-[var(--exam-text)]">{question.reason}</span>
           </div>
         </div>
@@ -155,27 +162,25 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
 
       {/* Image / Diagram Block */}
       {question.questionType === 'image' && question.imageSvg && (
-        <div className="mb-5 rounded-lg overflow-hidden border border-[var(--exam-border-strong)] bg-slate-950 p-3">
+        <div className="mb-5 border-3 border-[var(--exam-border)] bg-slate-950 p-3">
           <div
             className="max-w-md mx-auto aspect-[360/170]"
             dangerouslySetInnerHTML={{ __html: question.imageSvg }}
           />
           {question.imageCaption && (
-            <div className="text-xs text-slate-300 text-center mt-2">
-              {question.imageCaption}
-            </div>
+            <div className="text-xs text-slate-300 text-center mt-2">{question.imageCaption}</div>
           )}
         </div>
       )}
 
       {/* Type-Specific Interactive Inputs */}
       {question.questionType === 'integer' ? (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <label
             htmlFor={`int-${question.id}`}
-            className="block text-xs font-semibold uppercase tracking-wide text-[var(--exam-text-muted)]"
+            className="block font-display-pixel text-xs text-[var(--exam-text-muted)]"
           >
-            Enter Numerical / Integer Answer
+            ENTER NUMERICAL ANSWER
           </label>
           <input
             id={`int-${question.id}`}
@@ -184,19 +189,19 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
             disabled={disabled}
             value={userAnswer === null || userAnswer === undefined ? '' : String(userAnswer)}
             onChange={(e) => onChangeAnswer(e.target.value)}
-            placeholder="Type exact number (e.g. 9)"
+            placeholder="e.g. 9"
             className="exam-input w-full sm:max-w-xs px-4 py-3 font-code text-base font-bold"
           />
           {revealed && (
-            <div className="text-sm font-code text-[var(--exam-success)] pt-1">
-              Correct Answer: {String(revealCorrectAnswer)}
+            <div className="font-display-pixel text-sm text-[var(--exam-success)] pt-1">
+              CORRECT ANSWER: {String(revealCorrectAnswer)}
             </div>
           )}
         </div>
       ) : question.questionType === 'match' && question.matchPairs ? (
         <div className="space-y-3">
-          <div className="text-xs font-medium text-[var(--exam-text-muted)]">
-            Match each item in List I to its corresponding item in List II:
+          <div className="font-display-pixel text-xs text-[var(--exam-text-muted)]">
+            MATCH LIST I TO LIST II:
           </div>
           <div className="space-y-2.5">
             {question.matchPairs.left.map((leftLabel, rowIdx) => {
@@ -212,18 +217,16 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
               return (
                 <div
                   key={rowIdx}
-                  className={`p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                  className={`p-3 border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                     revealed
                       ? rowCorrect
                         ? 'bg-[var(--exam-success-soft)] border-[var(--exam-success)]'
                         : 'bg-[var(--exam-danger-soft)] border-[var(--exam-danger)]'
-                      : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border-strong)]'
+                      : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)]'
                   }`}
                 >
-                  <div className="text-sm font-semibold text-[var(--exam-text)]">
-                    <span className="font-code text-[var(--exam-accent)] mr-2">
-                      {rowIdx + 1}.
-                    </span>
+                  <div className="text-sm sm:text-base font-semibold text-[var(--exam-text)]">
+                    <span className="font-code text-[var(--exam-accent)] mr-2">{rowIdx + 1}.</span>
                     {leftLabel}
                   </div>
                   <select
@@ -235,7 +238,7 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
                       next[rowIdx] = Number(e.target.value);
                       onChangeAnswer(next);
                     }}
-                    className="exam-input px-3 py-2 text-sm min-h-[42px] sm:w-72"
+                    className="exam-input px-3 py-2 text-sm min-h-[44px] sm:w-72"
                   >
                     <option value={-1}>Select match...</option>
                     {question.matchPairs!.right.map((rOpt, rIdx) => (
@@ -249,7 +252,7 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
             })}
           </div>
           {revealed && Array.isArray(revealCorrectAnswer) && (
-            <div className="text-xs font-code text-[var(--exam-success)] pt-1">
+            <div className="font-code text-xs text-[var(--exam-success)] pt-1">
               Correct Mapping:{' '}
               {revealCorrectAnswer
                 .map((rIdx, lIdx) => `${lIdx + 1}→${OPTION_LETTERS[rIdx]}`)
@@ -258,10 +261,10 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           )}
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {question.questionType === 'multiple' && (
-            <div className="text-xs font-medium text-[var(--exam-accent)] mb-1">
-              Multiple options may be correct — select all that apply.
+            <div className="font-display-pixel text-xs text-[var(--exam-accent)]">
+              SELECT ALL CORRECT BLOCKS:
             </div>
           )}
           {question.options.map((opt, idx) =>
