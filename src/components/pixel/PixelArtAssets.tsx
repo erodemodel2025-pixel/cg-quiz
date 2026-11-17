@@ -38,7 +38,15 @@ export type PixelIllustrationName =
   | 'trophy'
   | 'rocket'
   | 'compass'
-  | 'oops';
+  | 'oops'
+  | 'robot'
+  | 'circuit'
+  | 'crown'
+  | 'diamond_trophy'
+  | 'medal_gold'
+  | 'medal_silver'
+  | 'medal_bronze'
+  | 'shield';
 
 interface PixelLogoProps {
   variant?: 'desktop' | 'mobile' | 'hero';
@@ -52,40 +60,31 @@ export const PixelLogo: React.FC<PixelLogoProps> = ({ variant = 'desktop', class
   if (variant === 'hero') {
     return (
       <div className={`inline-flex flex-col items-center select-none ${className}`} aria-label="CG QUIZ">
-        <div className="flex items-center gap-3 sm:gap-4 mb-2">
-          {/* Original Voxel Question Cube Emblem */}
+        <div className="flex items-center gap-3 sm:gap-4 mb-1">
           <svg
             viewBox="0 0 24 24"
-            className="w-11 h-11 sm:w-14 sm:h-14 pixelated shrink-0 animate-pixel-bob"
+            className="w-12 h-12 sm:w-16 sm:h-16 pixelated shrink-0 animate-pixel-bob"
             shapeRendering="crispEdges"
             aria-hidden="true"
           >
-            {/* Outer dark outline */}
             <rect x="2" y="2" width="20" height="20" fill="#0B0F1A" />
-            {/* Gold main face */}
             <rect x="4" y="4" width="16" height="16" fill="#FACC15" />
-            {/* Top-left bright bevel */}
             <rect x="4" y="4" width="16" height="2" fill="#FEF08A" />
             <rect x="4" y="4" width="2" height="16" fill="#FEF08A" />
-            {/* Bottom-right shadow bevel */}
             <rect x="4" y="18" width="16" height="2" fill="#CA8A04" />
             <rect x="18" y="4" width="2" height="16" fill="#CA8A04" />
-            {/* Corner rivet pixels */}
             <rect x="6" y="6" width="1" height="1" fill="#A16207" />
             <rect x="17" y="6" width="1" height="1" fill="#A16207" />
             <rect x="6" y="17" width="1" height="1" fill="#A16207" />
             <rect x="17" y="17" width="1" height="1" fill="#A16207" />
-            {/* Chunky Pixel '?' */}
             <rect x="9" y="7" width="6" height="2" fill="#1E293B" />
             <rect x="13" y="9" width="2" height="2" fill="#1E293B" />
             <rect x="11" y="11" width="4" height="2" fill="#1E293B" />
             <rect x="11" y="13" width="2" height="1" fill="#1E293B" />
             <rect x="11" y="15" width="2" height="2" fill="#1E293B" />
-            {/* Highlight on '?' */}
             <rect x="9" y="7" width="1" height="1" fill="#FFFFFF" />
           </svg>
 
-          {/* Extruded Block Title: CG */}
           <div className="voxel-title-stack text-left">
             <div className="voxel-hero-cg font-pixel text-3xl sm:text-5xl md:text-6xl leading-none tracking-wider">
               CG
@@ -111,11 +110,9 @@ export const PixelLogo: React.FC<PixelLogoProps> = ({ variant = 'desktop', class
         <rect x="2" y="2" width="14" height="14" fill="#22C55E" />
         <rect x="2" y="2" width="14" height="2" fill="#86EFAC" />
         <rect x="2" y="14" width="14" height="2" fill="#15803D" />
-        {/* Pixel 'C' */}
         <rect x="4" y="5" width="4" height="2" fill="#FFFFFF" />
         <rect x="4" y="7" width="2" height="4" fill="#FFFFFF" />
         <rect x="4" y="11" width="4" height="2" fill="#FFFFFF" />
-        {/* Pixel 'G' / Spark */}
         <rect x="10" y="5" width="4" height="2" fill="#FACC15" />
         <rect x="10" y="7" width="2" height="4" fill="#FACC15" />
         <rect x="10" y="11" width="4" height="2" fill="#FACC15" />
@@ -143,9 +140,6 @@ interface PixelIconProps {
   className?: string;
 }
 
-/**
- * Unified 16x16 pixel-grid SVG icon set (crispEdges, zero external URLs).
- */
 export const PixelIcon: React.FC<PixelIconProps> = ({ name, size = 18, className = '' }) => {
   const renderGlyph = () => {
     switch (name) {
@@ -432,9 +426,6 @@ interface PixelIllustrationProps {
   className?: string;
 }
 
-/**
- * Original 24x24 low-detail voxel/pixel illustrations for categories, empty states, and celebrations.
- */
 export const PixelIllustration: React.FC<PixelIllustrationProps> = ({
   name,
   size = 56,
@@ -486,15 +477,12 @@ export const PixelIllustration: React.FC<PixelIllustrationProps> = ({
       case 'books':
         return (
           <>
-            {/* Bottom book */}
             <rect x="3" y="15" width="18" height="5" fill="#0B0F1A" />
             <rect x="4" y="16" width="16" height="3" fill="#EF4444" />
             <rect x="6" y="16" width="2" height="3" fill="#FCA5A5" />
-            {/* Middle book */}
             <rect x="5" y="10" width="16" height="5" fill="#0B0F1A" />
             <rect x="6" y="11" width="14" height="3" fill="#3B82F6" />
             <rect x="8" y="11" width="2" height="3" fill="#93C5FD" />
-            {/* Top book */}
             <rect x="4" y="5" width="15" height="5" fill="#0B0F1A" />
             <rect x="5" y="6" width="13" height="3" fill="#22C55E" />
             <rect x="7" y="6" width="2" height="3" fill="#86EFAC" />
@@ -503,7 +491,6 @@ export const PixelIllustration: React.FC<PixelIllustrationProps> = ({
       case 'tools':
         return (
           <>
-            {/* Blocky pixel gear + wrench */}
             <rect x="9" y="3" width="6" height="18" fill="#94A3B8" />
             <rect x="3" y="9" width="18" height="6" fill="#94A3B8" />
             <rect x="5" y="5" width="14" height="14" fill="#64748B" />
@@ -523,6 +510,94 @@ export const PixelIllustration: React.FC<PixelIllustrationProps> = ({
             <rect x="6" y="17" width="12" height="4" fill="#0B0F1A" />
             <rect x="7" y="18" width="10" height="2" fill="#475569" />
             <rect x="10" y="7" width="4" height="2" fill="#FFFFFF" />
+          </>
+        );
+      case 'diamond_trophy':
+        return (
+          <>
+            <rect x="5" y="2" width="14" height="2" fill="#BAE6FD" />
+            <rect x="4" y="4" width="16" height="7" fill="#38BDF8" />
+            <rect x="2" y="5" width="2" height="4" fill="#0284C7" />
+            <rect x="20" y="5" width="2" height="4" fill="#0284C7" />
+            <rect x="7" y="11" width="10" height="3" fill="#0EA5E9" />
+            <rect x="10" y="14" width="4" height="3" fill="#0284C7" />
+            <rect x="6" y="17" width="12" height="4" fill="#0B0F1A" />
+            <rect x="7" y="18" width="10" height="2" fill="#FACC15" />
+            <rect x="9" y="6" width="6" height="2" fill="#FFFFFF" />
+            <rect x="11" y="5" width="2" height="4" fill="#FFFFFF" />
+          </>
+        );
+      case 'crown':
+        return (
+          <>
+            <rect x="3" y="16" width="18" height="4" fill="#0B0F1A" />
+            <rect x="4" y="9" width="16" height="8" fill="#FACC15" />
+            <rect x="4" y="5" width="3" height="4" fill="#FEF08A" />
+            <rect x="10" y="4" width="4" height="5" fill="#FEF08A" />
+            <rect x="17" y="5" width="3" height="4" fill="#FEF08A" />
+            <rect x="6" y="12" width="2" height="2" fill="#EF4444" />
+            <rect x="11" y="11" width="2" height="3" fill="#38BDF8" />
+            <rect x="16" y="12" width="2" height="2" fill="#22C55E" />
+          </>
+        );
+      case 'medal_gold':
+      case 'medal_silver':
+      case 'medal_bronze': {
+        const main = name === 'medal_gold' ? '#FACC15' : name === 'medal_silver' ? '#CBD5E1' : '#FB923C';
+        const hi = name === 'medal_gold' ? '#FEF08A' : name === 'medal_silver' ? '#F8FAFC' : '#FDBA74';
+        const sh = name === 'medal_gold' ? '#CA8A04' : name === 'medal_silver' ? '#64748B' : '#C2410C';
+        return (
+          <>
+            <rect x="8" y="2" width="3" height="6" fill="#EF4444" />
+            <rect x="13" y="2" width="3" height="6" fill="#3B82F6" />
+            <rect x="6" y="8" width="12" height="12" fill="#0B0F1A" />
+            <rect x="7" y="9" width="10" height="10" fill={main} />
+            <rect x="7" y="9" width="10" height="2" fill={hi} />
+            <rect x="7" y="17" width="10" height="2" fill={sh} />
+            <rect x="11" y="12" width="2" height="4" fill="#0B0F1A" />
+          </>
+        );
+      }
+      case 'shield':
+        return (
+          <>
+            <rect x="4" y="3" width="16" height="10" fill="#0B0F1A" />
+            <rect x="6" y="13" width="12" height="4" fill="#0B0F1A" />
+            <rect x="9" y="17" width="6" height="3" fill="#0B0F1A" />
+            <rect x="5" y="4" width="14" height="9" fill="#38BDF8" />
+            <rect x="7" y="13" width="10" height="3" fill="#0EA5E9" />
+            <rect x="10" y="16" width="4" height="3" fill="#0284C7" />
+            <rect x="11" y="6" width="2" height="8" fill="#FEF08A" />
+            <rect x="8" y="9" width="8" height="2" fill="#FEF08A" />
+          </>
+        );
+      case 'circuit':
+        return (
+          <>
+            <rect x="5" y="5" width="14" height="14" fill="#0B0F1A" />
+            <rect x="6" y="6" width="12" height="12" fill="#1E293B" />
+            <rect x="8" y="8" width="8" height="8" fill="#FACC15" />
+            <rect x="10" y="10" width="4" height="4" fill="#0B0F1A" />
+            <rect x="2" y="8" width="3" height="2" fill="#22C55E" />
+            <rect x="2" y="14" width="3" height="2" fill="#22C55E" />
+            <rect x="19" y="8" width="3" height="2" fill="#22C55E" />
+            <rect x="19" y="14" width="3" height="2" fill="#22C55E" />
+            <rect x="8" y="2" width="2" height="3" fill="#38BDF8" />
+            <rect x="14" y="2" width="2" height="3" fill="#38BDF8" />
+            <rect x="8" y="19" width="2" height="3" fill="#38BDF8" />
+            <rect x="14" y="19" width="2" height="3" fill="#38BDF8" />
+          </>
+        );
+      case 'robot':
+        return (
+          <>
+            <rect x="11" y="2" width="2" height="3" fill="#FACC15" />
+            <rect x="5" y="5" width="14" height="11" fill="#0B0F1A" />
+            <rect x="6" y="6" width="12" height="9" fill="#A855F7" />
+            <rect x="8" y="9" width="2" height="2" fill="#38BDF8" />
+            <rect x="14" y="9" width="2" height="2" fill="#38BDF8" />
+            <rect x="9" y="13" width="6" height="1" fill="#E9D5FF" />
+            <rect x="7" y="16" width="10" height="5" fill="#475569" />
           </>
         );
       case 'rocket':
@@ -555,10 +630,8 @@ export const PixelIllustration: React.FC<PixelIllustrationProps> = ({
             <rect x="4" y="5" width="16" height="14" fill="#0B0F1A" />
             <rect x="5" y="6" width="14" height="12" fill="#EF4444" />
             <rect x="5" y="6" width="14" height="2" fill="#FCA5A5" />
-            {/* X eyes */}
             <rect x="7" y="9" width="2" height="2" fill="#FFFFFF" />
             <rect x="15" y="9" width="2" height="2" fill="#FFFFFF" />
-            {/* Zigzag mouth */}
             <rect x="8" y="14" width="2" height="2" fill="#1E293B" />
             <rect x="10" y="13" width="4" height="2" fill="#1E293B" />
             <rect x="14" y="14" width="2" height="2" fill="#1E293B" />
@@ -581,9 +654,151 @@ export const PixelIllustration: React.FC<PixelIllustrationProps> = ({
   );
 };
 
+export type MascotMood = 'idle' | 'happy' | 'excited' | 'thinking' | 'sad' | 'boss';
+
 /**
- * Animated segmented pixel block loader (replaces spinners).
+ * BIT-BOT — original CG QUIZ animated 2D engineering builder mascot!
  */
+export const PixelMascot: React.FC<{
+  mood?: MascotMood;
+  size?: number;
+  className?: string;
+}> = ({ mood = 'idle', size = 84, className = '' }) => {
+  const eyeColor =
+    mood === 'excited'
+      ? '#22FF66'
+      : mood === 'boss'
+        ? '#FF6B00'
+        : mood === 'sad'
+          ? '#94A3B8'
+          : '#38BDF8';
+
+  const antennaColor =
+    mood === 'excited'
+      ? '#22FF66'
+      : mood === 'sad'
+        ? '#64748B'
+        : '#FACC15';
+
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      width={size}
+      height={size}
+      shapeRendering="crispEdges"
+      className={`pixelated shrink-0 ${mood === 'sad' ? '' : 'animate-pixel-bob'} ${className}`}
+      aria-hidden="true"
+    >
+      {/* Antenna spark */}
+      <rect x="15" y="1" width="2" height="2" fill={antennaColor} />
+      <rect x="15" y="3" width="2" height="3" fill="#94A3B8" />
+      {mood === 'excited' && (
+        <>
+          <rect x="11" y="1" width="2" height="2" fill="#FEF08A" />
+          <rect x="19" y="1" width="2" height="2" fill="#FEF08A" />
+        </>
+      )}
+
+      {/* Yellow Engineering Hardhat */}
+      <rect x="7" y="5" width="18" height="3" fill="#FACC15" />
+      <rect x="5" y="8" width="22" height="2" fill="#EAB308" />
+      <rect x="14" y="5" width="4" height="3" fill="#FEF08A" />
+
+      {/* Robot Head Shell */}
+      <rect x="6" y="10" width="20" height="11" fill="#0B0F1A" />
+      <rect x="7" y="11" width="18" height="9" fill="#334155" />
+      {/* Visor Screen */}
+      <rect x="9" y="12" width="14" height="7" fill="#0F172A" />
+
+      {/* Expressive Eyes */}
+      {mood === 'excited' ? (
+        <>
+          <rect x="10" y="14" width="3" height="2" fill={eyeColor} />
+          <rect x="11" y="13" width="1" height="1" fill={eyeColor} />
+          <rect x="19" y="14" width="3" height="2" fill={eyeColor} />
+          <rect x="20" y="13" width="1" height="1" fill={eyeColor} />
+        </>
+      ) : mood === 'sad' ? (
+        <>
+          <rect x="10" y="15" width="3" height="2" fill={eyeColor} />
+          <rect x="19" y="15" width="3" height="2" fill={eyeColor} />
+          <rect x="13" y="17" width="6" height="1" fill="#64748B" />
+        </>
+      ) : (
+        <>
+          <rect x="10" y="13" width="3" height="3" fill={eyeColor} />
+          <rect x="19" y="13" width="3" height="3" fill={eyeColor} />
+          <rect x="11" y="13" width="1" height="1" fill="#FFFFFF" />
+          <rect x="20" y="13" width="1" height="1" fill="#FFFFFF" />
+        </>
+      )}
+
+      {/* Mouth */}
+      {mood === 'happy' || mood === 'excited' ? (
+        <>
+          <rect x="12" y="17" width="8" height="1" fill="#22C55E" />
+          <rect x="13" y="18" width="6" height="1" fill="#22C55E" />
+        </>
+      ) : mood === 'thinking' ? (
+        <rect x="14" y="17" width="4" height="1" fill="#FACC15" />
+      ) : mood === 'sad' ? (
+        <rect x="13" y="18" width="6" height="1" fill="#EF4444" />
+      ) : (
+        <rect x="13" y="17" width="6" height="1" fill="#38BDF8" />
+      )}
+
+      {/* Chest Chassis + Power Core */}
+      <rect x="8" y="21" width="16" height="8" fill="#0B0F1A" />
+      <rect x="9" y="22" width="14" height="6" fill="#475569" />
+      <rect x="14" y="23" width="4" height="4" fill={mood === 'excited' ? '#FACC15' : '#22C55E'} />
+
+      {/* Arms / Wrench */}
+      <rect x="4" y="22" width="4" height="4" fill="#94A3B8" />
+      <rect x="24" y="22" width="4" height="4" fill="#94A3B8" />
+      {mood !== 'sad' && (
+        <>
+          <rect x="26" y="18" width="2" height="5" fill="#CBD5E1" />
+          <rect x="25" y="16" width="4" height="2" fill="#CBD5E1" />
+        </>
+      )}
+
+      {/* Feet */}
+      <rect x="9" y="29" width="5" height="2" fill="#0B0F1A" />
+      <rect x="18" y="29" width="5" height="2" fill="#0B0F1A" />
+    </svg>
+  );
+};
+
+/**
+ * Animated voxel wall torch for Trophy Room & Hero stages.
+ */
+export const PixelTorch: React.FC<{ size?: number; className?: string }> = ({
+  size = 40,
+  className = '',
+}) => (
+  <svg
+    viewBox="0 0 16 24"
+    width={size * 0.68}
+    height={size}
+    shapeRendering="crispEdges"
+    className={`pixelated shrink-0 ${className}`}
+    aria-hidden="true"
+  >
+    {/* Flame */}
+    <g className="animate-pixel-torch">
+      <rect x="7" y="1" width="2" height="3" fill="#FEF08A" />
+      <rect x="5" y="4" width="6" height="4" fill="#FACC15" />
+      <rect x="4" y="7" width="8" height="3" fill="#F97316" />
+      <rect x="6" y="5" width="4" height="3" fill="#FFFFFF" opacity="0.65" />
+    </g>
+    {/* Torch Collar */}
+    <rect x="4" y="10" width="8" height="2" fill="#475569" />
+    {/* Wooden Handle */}
+    <rect x="6" y="12" width="4" height="10" fill="#78350F" />
+    <rect x="7" y="12" width="1" height="10" fill="#92400E" />
+  </svg>
+);
+
 export const PixelLoader: React.FC<{ label?: string }> = ({ label = 'LOADING...' }) => {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-6">

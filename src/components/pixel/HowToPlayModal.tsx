@@ -64,7 +64,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({
                 Pick a Quiz or Category
               </div>
               <p className="text-xs sm:text-sm text-[var(--exam-text-secondary)] mt-0.5">
-                Jump straight into a 10-question Quick Quiz, or choose Science, Technology, General Knowledge, Engineering, or 14+ exam tracks.
+                Jump straight into a 10-question Quick Quiz, or choose from 12 engineering branches including CS, AI, Robotics, Mechanical, Civil, and Electrical.
               </p>
             </div>
           </div>

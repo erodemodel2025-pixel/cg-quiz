@@ -12,6 +12,8 @@ interface SmartExplanationCardProps {
   userAnswer: ExamUserAnswer;
   correctAnswer: number | number[] | string;
   explanation: SmartExplanation;
+  source?: string;
+  year?: number | null;
   defaultExpanded?: boolean;
 }
 
@@ -52,6 +54,8 @@ export const SmartExplanationCard: React.FC<SmartExplanationCardProps> = ({
   userAnswer,
   correctAnswer,
   explanation,
+  source,
+  year,
   defaultExpanded = true,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -147,6 +151,12 @@ export const SmartExplanationCard: React.FC<SmartExplanationCardProps> = ({
                 QUICK TIP:{' '}
               </span>
               <span className="text-[var(--exam-text)]">{explanation.shortcut}</span>
+            </div>
+          )}
+          {source && (
+            <div className="pt-1 font-code text-[11px] text-[var(--exam-text-muted)]">
+              Source: {source}
+              {year ? ` · ${year}` : ''}
             </div>
           )}
         </div>

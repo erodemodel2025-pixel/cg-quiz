@@ -236,12 +236,12 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (!isOnline) return;
       try {
         if (exists) {
-          await fetch(
+          await safeFetchJson(
             `/api/exam/bookmarks/${encodeURIComponent(questionId)}?userId=${encodeURIComponent(examUserId)}`,
             { method: 'DELETE' }
           );
         } else {
-          await fetch(`/api/exam/bookmarks/${encodeURIComponent(questionId)}`, {
+          await safeFetchJson(`/api/exam/bookmarks/${encodeURIComponent(questionId)}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: examUserId }),

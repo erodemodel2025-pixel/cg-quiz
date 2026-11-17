@@ -37,6 +37,8 @@ export const TopNav: React.FC<TopNavProps> = ({
     toggleUiTheme,
     soundEnabled,
     toggleSound,
+    musicEnabled,
+    toggleMusic,
     reducedMotion,
     toggleReducedMotion,
     isOnline,
@@ -96,7 +98,6 @@ export const TopNav: React.FC<TopNavProps> = ({
         ref={menuWrapRef}
         className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 relative"
       >
-        {/* LOGO */}
         <button
           type="button"
           onClick={handleLogoClick}
@@ -119,8 +120,8 @@ export const TopNav: React.FC<TopNavProps> = ({
           )}
         </button>
 
-        {/* Minimal Navigation: Desktop = PLAY · CATEGORIES · SCORES · MENU | Mobile = PLAY · MENU */}
-        <nav className="flex items-center gap-2 sm:gap-3" aria-label="Main navigation">
+        {/* Clean Single-Row Game Bar */}
+        <nav className="flex items-center gap-2 sm:gap-2.5" aria-label="Main navigation">
           <button
             type="button"
             onClick={() => {
@@ -143,7 +144,7 @@ export const TopNav: React.FC<TopNavProps> = ({
                 : 'exam-btn-secondary'
             }`}
           >
-            CATEGORIES
+            BRANCHES
           </button>
 
           <button
@@ -153,7 +154,8 @@ export const TopNav: React.FC<TopNavProps> = ({
               route === 'leaderboard' ? 'exam-btn-gold' : 'exam-btn-secondary'
             }`}
           >
-            SCORES
+            <PixelIcon name="trophy" size={14} />
+            <span>TROPHIES</span>
           </button>
 
           <button
@@ -183,14 +185,13 @@ export const TopNav: React.FC<TopNavProps> = ({
             }`}
             role="menu"
           >
-            {/* Player Identity */}
             <div className="exam-card-subtle p-3 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-display-pixel text-[10px] uppercase text-[var(--exam-text-muted)]">
-                  PLAYER
+                  ENGINEER
                 </div>
                 <div className="font-display-pixel text-xs sm:text-sm font-bold text-[var(--exam-text)] truncate">
-                  {player ? player.name : 'Guest Adventurer'}
+                  {player ? player.name : 'Guest Builder'}
                 </div>
               </div>
               <button
@@ -210,16 +211,15 @@ export const TopNav: React.FC<TopNavProps> = ({
               </button>
             </div>
 
-            {/* Menu Destinations */}
             <div className="grid grid-cols-1 gap-1.5">
               {(
                 [
-                  { id: 'quiz-studio', label: 'All Categories & Modes', icon: 'quiz' },
-                  { id: 'leaderboard', label: 'Scores & Rankings', icon: 'trophy' },
-                  { id: 'mistakes', label: 'My Mistakes & Saved', icon: 'bookmark' },
-                  { id: 'bank', label: 'Question Bank', icon: 'book' },
-                  { id: 'analytics', label: 'My Progress & History', icon: 'score' },
+                  { id: 'quiz-studio', label: 'Engineering Branches & Modes', icon: 'engineering' },
+                  { id: 'leaderboard', label: 'Grand Trophy Room', icon: 'trophy' },
                   { id: 'arcade', label: 'Arcade Mini-Games', icon: 'arcade' },
+                  { id: 'mistakes', label: 'Mistakes & Saved', icon: 'bookmark' },
+                  { id: 'bank', label: 'Question Bank', icon: 'book' },
+                  { id: 'analytics', label: 'My Progress', icon: 'score' },
                 ] as const
               ).map((item) => {
                 const active = route === item.id;
@@ -256,16 +256,26 @@ export const TopNav: React.FC<TopNavProps> = ({
               </button>
             </div>
 
-            {/* Compact Game Settings Row */}
-            <div className="pt-2 border-t-2 border-[var(--exam-border)] grid grid-cols-3 gap-2">
+            {/* Compact Game Controls Row */}
+            <div className="pt-2 border-t-2 border-[var(--exam-border)] grid grid-cols-4 gap-1.5">
               <button
                 type="button"
                 onClick={() => toggleSound()}
-                className="exam-card-subtle py-2 px-2 flex flex-col items-center justify-center gap-1 text-[10px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
-                aria-label={soundEnabled ? 'Mute sound effects' : 'Enable sound effects'}
+                className="exam-card-subtle py-2 px-1 flex flex-col items-center justify-center gap-1 text-[9px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
+                aria-label={soundEnabled ? 'Mute sound' : 'Enable sound'}
               >
-                <PixelIcon name={soundEnabled ? 'sound-on' : 'sound-off'} size={15} />
-                <span>{soundEnabled ? 'SFX ON' : 'MUTED'}</span>
+                <PixelIcon name={soundEnabled ? 'sound-on' : 'sound-off'} size={14} />
+                <span>{soundEnabled ? 'SFX' : 'MUTE'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => toggleMusic()}
+                className="exam-card-subtle py-2 px-1 flex flex-col items-center justify-center gap-1 text-[9px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
+                aria-label={musicEnabled ? 'Mute music' : 'Enable music'}
+              >
+                <PixelIcon name="arcade" size={14} />
+                <span>{musicEnabled ? 'BGM ON' : 'BGM OFF'}</span>
               </button>
 
               <button
@@ -274,10 +284,10 @@ export const TopNav: React.FC<TopNavProps> = ({
                   arcadeAudio.playSfx('click');
                   toggleUiTheme();
                 }}
-                className="exam-card-subtle py-2 px-2 flex flex-col items-center justify-center gap-1 text-[10px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
+                className="exam-card-subtle py-2 px-1 flex flex-col items-center justify-center gap-1 text-[9px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
                 aria-label={uiTheme === 'dark' ? 'Switch to light sky' : 'Switch to dark sky'}
               >
-                <PixelIcon name={uiTheme === 'dark' ? 'sun' : 'moon'} size={15} />
+                <PixelIcon name={uiTheme === 'dark' ? 'sun' : 'moon'} size={14} />
                 <span>{uiTheme === 'dark' ? 'DAY' : 'NIGHT'}</span>
               </button>
 
@@ -287,11 +297,11 @@ export const TopNav: React.FC<TopNavProps> = ({
                   arcadeAudio.playSfx('click');
                   toggleReducedMotion();
                 }}
-                className="exam-card-subtle py-2 px-2 flex flex-col items-center justify-center gap-1 text-[10px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
+                className="exam-card-subtle py-2 px-1 flex flex-col items-center justify-center gap-1 text-[9px] font-display-pixel cursor-pointer hover:border-[var(--exam-accent)]"
                 aria-label="Toggle calm motion"
               >
-                <PixelIcon name="settings" size={15} />
-                <span>{reducedMotion ? 'CALM' : 'MOTION'}</span>
+                <PixelIcon name="settings" size={14} />
+                <span>{reducedMotion ? 'CALM' : 'ANIM'}</span>
               </button>
             </div>
           </div>

@@ -141,7 +141,7 @@ export function saveActiveQuizDraft(draft: ActiveQuizDraft | null): void {
 
 export function loadActiveQuizDraft(): ActiveQuizDraft | null {
   try {
-    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY) || localStorage.getItem('jeejarvis-quiz-progress');
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ActiveQuizDraft;
     if (!parsed?.sessionId || !parsed?.settings) return null;
@@ -150,3 +150,139 @@ export function loadActiveQuizDraft(): ActiveQuizDraft | null {
     return null;
   }
 }
+
+export const JEEJARVIS_HISTORY_KEY = 'jeejarvis-quiz-history';
+export const JEEJARVIS_PROGRESS_KEY = 'jeejarvis-quiz-progress';
+export const JEEJARVIS_STATS_KEY = 'jeejarvis-quiz-stats';
+
+export interface QuizHistoryEntry {
+  attemptId: string;
+  mode: ExamSettings['mode'];
+  subject: string;
+  categoryId: string;
+  score: number;
+  maxScore: number;
+  accuracy: number;
+  totalQuestions: number;
+  timeSpentSeconds: number;
+  questionIds: string[];
+  createdAt: string;
+  summary: ExamResultSummary;
+}
+
+export interface QuizAggregateStats {
+  totalQuizzes: number;
+  totalQuestions: number;
+  totalCorrect: number;
+  bestAccuracy: number;
+  weakTopics: string[];
+  updatedAt: string;
+}
+
+export function loadQuizHistory(): QuizHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(JEEJARVIS_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as QuizHistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getRecentlySeenQuestionIds(limit = 60): string[] {
+  const history = loadQuizHistory();
+  const seen: string[] = [];
+  const added = new Set<string>();
+  for (const h of history) {
+    for (const qId of h.questionIds || []) {
+      if (!added.has(qId)) {
+        added.add(qId);
+        seen.push(qId);
+      }
+      if (seen.length >= limit) return seen;
+    }
+  }
+  return seen;
+}
+
+export function loadQuizStats(): QuizAggregateStats {
+  try {
+    const raw = localStorage.getItem(JEEJARVIS_STATS_KEY);
+    if (raw) return JSON.parse(raw) as QuizAggregateStats;
+  } catch {
+    // ignore
+  }
+  return {
+    totalQuizzes: 0,
+    totalQuestions: 0,
+    totalCorrect: 0,
+    bestAccuracy: 0,
+    weakTopics: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function recordQuizHistory(
+  summary: ExamResultSummary,
+  subject: string,
+  categoryId: string
+): void {
+  try {
+    const prev = loadQuizHistory().filter((h) => h.attemptId !== summary.attemptId);
+    const entry: QuizHistoryEntry = {
+      attemptId: summary.attemptId,
+      mode: summary.mode,
+      subject,
+      categoryId,
+      score: summary.score,
+      maxScore: summary.maxScore,
+      accuracy: summary.accuracy,
+      totalQuestions: summary.totalQuestions,
+      timeSpentSeconds: summary.timeSpentSeconds,
+      questionIds: summary.details.map((d) => d.questionId),
+      createdAt: summary.createdAt,
+      summary,
+    };
+    const nextHistory = [entry, ...prev].slice(0, 25);
+    localStorage.setItem(JEEJARVIS_HISTORY_KEY, JSON.stringify(nextHistory));
+
+    const prevStats = loadQuizStats();
+    const weakTopics = summary.topicBreakdown
+      .filter((t) => t.attempted > 0 && t.accuracy < 65)
+      .map((t) => t.topic);
+    const nextStats: QuizAggregateStats = {
+      totalQuizzes: prevStats.totalQuizzes + 1,
+      totalQuestions: prevStats.totalQuestions + summary.totalQuestions,
+      totalCorrect: prevStats.totalCorrect + summary.correctCount,
+      bestAccuracy: Math.max(prevStats.bestAccuracy, summary.accuracy),
+      weakTopics: [...new Set([...weakTopics, ...prevStats.weakTopics])].slice(0, 8),
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(JEEJARVIS_STATS_KEY, JSON.stringify(nextStats));
+
+    // Also store in offline historyResults cache so clickable history works cleanly
+    updateOfflineCache({
+      historyResults: {
+        ...readOfflineCache().historyResults,
+        [summary.attemptId]: summary,
+      },
+    });
+  } catch {
+    // ignore quota issues
+  }
+}
+
+export function syncProgressToJeejarvisKey(draft: ActiveQuizDraft | null): void {
+  saveActiveQuizDraft(draft);
+  try {
+    if (!draft) {
+      localStorage.removeItem(JEEJARVIS_PROGRESS_KEY);
+    } else {
+      localStorage.setItem(JEEJARVIS_PROGRESS_KEY, JSON.stringify(draft));
+    }
+  } catch {
+    // ignore
+  }
+}
+

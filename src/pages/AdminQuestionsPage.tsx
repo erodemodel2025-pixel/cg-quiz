@@ -173,7 +173,7 @@ export const AdminQuestionsPage: React.FC<{ onBack: () => void }> = ({ onBack })
   };
 
   const handleDelete = async (id: string) => {
-    await fetch(`/api/admin/questions/${encodeURIComponent(id)}`, {
+    await safeFetchJson(`/api/admin/questions/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: { 'x-cgquiz-dev': DEV_TOKEN },
     });

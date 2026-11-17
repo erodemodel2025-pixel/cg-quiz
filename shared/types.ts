@@ -141,6 +141,12 @@ export type ExamDifficulty = 'Easy' | 'Medium' | 'Hard' | 'Expert';
 
 export type ExamMode =
   | 'quick'
+  | 'standard'
+  | 'challenge'
+  | 'career_fair'
+  | 'jee'
+  | 'mixed'
+  | 'adaptive'
   | 'practice'
   | 'timed'
   | 'mock'
@@ -157,7 +163,10 @@ export type QuestionType =
   | 'integer'
   | 'assertion_reason'
   | 'match'
-  | 'image';
+  | 'image'
+  | 'scenario'
+  | 'comparison'
+  | 'career_path';
 
 export type MistakeCategory =
   | 'concept'
@@ -186,9 +195,10 @@ export interface ExamCategoryInfo {
   id: string;
   name: string;
   shortName: string;
-  group: 'Competitive Exams' | 'Core Subjects' | 'General & Tech';
+  group: 'Branches' | 'JEE & Admissions' | 'Careers & Pathways' | 'Core Subjects' | 'General & Tech';
   description: string;
   accentColor: string;
+  difficultyLabel?: string;
 }
 
 export interface SmartExplanation {
@@ -214,7 +224,7 @@ export interface ExamQuestion {
   options: string[];
   /**
    * Canonical server-side answer representation:
-   * - single / assertion_reason / image / truefalse: number (option index)
+   * - single / scenario / comparison / career_path / assertion_reason / image / truefalse: number (option index)
    * - multiple: number[] (sorted option indices)
    * - integer: number | string (exact numeric match)
    * - match: number[] (right-index assigned to each left row)
@@ -225,9 +235,12 @@ export interface ExamQuestion {
   categoryId: string;
   chapter: string;
   topic: string;
+  concept?: string;
   difficulty: ExamDifficulty;
   questionType: QuestionType;
   source: string;
+  sourceUrl?: string | null;
+  lastUpdated?: string | null;
   year: number | null;
   tags: string[];
   verified: boolean;
@@ -247,6 +260,9 @@ export interface ExamSettings {
   questionCount: number;
   timeLimitMinutes: number;
   negativeMarking: number;
+  smartBoardMode?: boolean;
+  adaptiveEnabled?: boolean;
+  excludeQuestionIds?: string[];
 }
 
 export interface ExamAnswerItem {

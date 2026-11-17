@@ -9,6 +9,8 @@ import {
   PixelIcon,
   PixelIllustration,
   PixelLogo,
+  PixelMascot,
+  PixelTorch,
   type PixelIllustrationName,
 } from '../components/pixel/PixelArtAssets.tsx';
 
@@ -18,9 +20,10 @@ interface HomePageProps {
   onResumeDraft: (draft: ActiveQuizDraft) => void;
   onOpenHowToPlay: () => void;
   onOpenAnalytics: () => void;
+  onOpenTrophyRoom?: () => void;
 }
 
-const FEATURED_CATEGORIES: Array<{
+const FEATURED_ENGINEERING_BRANCHES: Array<{
   id: string;
   title: string;
   subtitle: string;
@@ -28,31 +31,31 @@ const FEATURED_CATEGORIES: Array<{
   accentColor: string;
 }> = [
   {
-    id: 'science',
-    title: 'Science',
-    subtitle: 'Laws, atoms & discovery',
-    art: 'lab',
-    accentColor: '#22C55E',
-  },
-  {
     id: 'cs',
-    title: 'Technology',
-    subtitle: 'Code, AI & systems',
+    title: 'Computer Science',
+    subtitle: 'Algorithms & systems',
     art: 'computer',
-    accentColor: '#38BDF8',
+    accentColor: '#00F0FF',
   },
   {
-    id: 'gk',
-    title: 'General Knowledge',
-    subtitle: 'World, history & facts',
-    art: 'compass',
+    id: 'electronics',
+    title: 'Electronics',
+    subtitle: 'Logic gates & circuits',
+    art: 'circuit',
     accentColor: '#FACC15',
   },
   {
-    id: 'engineering',
-    title: 'Engineering',
-    subtitle: 'Circuits, logic & design',
+    id: 'mechanical',
+    title: 'Mechanical',
+    subtitle: 'Thermo & fluid power',
     art: 'tools',
+    accentColor: '#38BDF8',
+  },
+  {
+    id: 'ai',
+    title: 'AI & Robotics',
+    subtitle: 'Neural nets & control',
+    art: 'robot',
     accentColor: '#A855F7',
   },
 ];
@@ -63,6 +66,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onResumeDraft,
   onOpenHowToPlay,
   onOpenAnalytics,
+  onOpenTrophyRoom,
 }) => {
   const { examUserId, setMusicMode } = useArcade();
 
@@ -84,40 +88,46 @@ export const HomePage: React.FC<HomePageProps> = ({
   const levelInfo = computeExamLevel(analytics?.streaks.examXp ?? 0);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-14 space-y-10">
-      {/* Focused Pixel Title-Screen Hero */}
-      <section className="exam-card px-6 py-9 sm:px-10 sm:py-12 text-center relative overflow-hidden">
-        {/* Corner decorative pixel rivets */}
-        <span className="hidden sm:block absolute top-3 left-3 w-2.5 h-2.5 bg-[var(--voxel-gold)] border border-[#0B0F1A]" />
-        <span className="hidden sm:block absolute top-3 right-3 w-2.5 h-2.5 bg-[var(--voxel-gold)] border border-[#0B0F1A]" />
-        <span className="hidden sm:block absolute bottom-3 left-3 w-2.5 h-2.5 bg-[var(--voxel-green)] border border-[#0B0F1A]" />
-        <span className="hidden sm:block absolute bottom-3 right-3 w-2.5 h-2.5 bg-[var(--voxel-green)] border border-[#0B0F1A]" />
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-9">
+      {/* Crisp Arcade Title-Screen Stage */}
+      <section className="exam-card px-6 py-9 sm:px-10 sm:py-11 text-center relative overflow-hidden">
+        {/* Corner Pixel Torches */}
+        <div className="hidden sm:block absolute top-4 left-5">
+          <PixelTorch size={38} />
+        </div>
+        <div className="hidden sm:block absolute top-4 right-5">
+          <PixelTorch size={38} />
+        </div>
 
         <div className="flex flex-col items-center">
-          <PixelLogo variant="hero" className="mb-4" />
+          {/* Mascot + Block Title */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
+            <PixelMascot mood="happy" size={84} />
+            <PixelLogo variant="hero" />
+          </div>
 
-          <h1 className="font-display-pixel text-base sm:text-xl font-bold text-[var(--exam-text)] tracking-wide mb-2">
-            Learn. Play. Challenge yourself.
+          <h1 className="font-pixel text-sm sm:text-lg text-[var(--voxel-gold)] tracking-wider mb-2">
+            THE ENGINEERING ARCADE
           </h1>
 
           <p className="text-sm sm:text-base text-[var(--exam-text-secondary)] max-w-md mb-7">
-            Jump into a fast 10-question adventure or pick a subject block below.
+            Test your engineering instincts across 12 technical branches and earn crowns in the Grand Trophy Room.
           </p>
 
-          {/* ONE Large Primary Action Button */}
+          {/* Primary Play Action */}
           <button
             type="button"
             onClick={() => {
               arcadeAudio.playSfx('gameStart');
               onStartExamPreset({ mode: 'quick', questionCount: 10, timeLimitMinutes: 8 });
             }}
-            className="exam-btn exam-btn-primary px-8 sm:px-10 py-4 text-sm sm:text-base min-h-[54px]"
+            className="exam-btn exam-btn-primary px-9 sm:px-11 py-4 text-sm sm:text-base min-h-[56px]"
           >
             <PixelIcon name="play" size={18} />
-            <span>START QUIZ</span>
+            <span>PLAY ENGINEERING QUIZ</span>
           </button>
 
-          {/* Quiet Secondary Text Links */}
+          {/* Quiet Secondary Links */}
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-5 text-xs sm:text-sm font-display-pixel">
             {draft && draft.questions?.length > 0 && (
               <button
@@ -128,7 +138,20 @@ export const HomePage: React.FC<HomePageProps> = ({
                 }}
                 className="text-[var(--voxel-green)] hover:underline cursor-pointer"
               >
-                Continue saved quiz ({draft.mode})
+                Resume saved quiz ({draft.mode})
+              </button>
+            )}
+
+            {onOpenTrophyRoom && (
+              <button
+                type="button"
+                onClick={() => {
+                  arcadeAudio.playSfx('click');
+                  onOpenTrophyRoom();
+                }}
+                className="text-[var(--voxel-gold)] hover:underline flex items-center gap-1.5 cursor-pointer"
+              >
+                <PixelIcon name="trophy" size={14} /> Grand Trophy Room
               </button>
             )}
 
@@ -146,11 +169,11 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </section>
 
-      {/* Clean Clickable Pixel-Art Category Blocks */}
+      {/* Featured Engineering Branches (Clean 4-Block Row) */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-pixel text-xs sm:text-sm text-[var(--exam-text)] tracking-wide">
-            CHOOSE A CATEGORY
+            PICK AN ENGINEERING BRANCH
           </h2>
           <button
             type="button"
@@ -160,12 +183,12 @@ export const HomePage: React.FC<HomePageProps> = ({
             }}
             className="font-display-pixel text-xs sm:text-sm text-[var(--exam-accent)] hover:underline cursor-pointer"
           >
-            All 14 categories &amp; modes →
+            All 12 branches &amp; modes →
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {FEATURED_CATEGORIES.map((cat) => (
+          {FEATURED_ENGINEERING_BRANCHES.map((cat) => (
             <button
               key={cat.id}
               type="button"
@@ -200,7 +223,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </section>
 
-      {/* Subtle Single-Line Player HUD Ticker (Only when user has played, zero clutter) */}
+      {/* Clean One-Line Player Progress Strip */}
       {analytics?.hasData && (
         <div className="exam-card-subtle px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
           <div className="flex flex-wrap items-center gap-4 font-display-pixel">
@@ -212,7 +235,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <PixelIcon name="flame" size={14} />
               {analytics.streaks.dailyStreak}d Streak
             </span>
-            <span className="text-[var(--exam-text-secondary)] font-code">
+            <span className="text-[var(--exam-text-secondary)] font-code tabular-nums">
               {analytics.overallAccuracy}% Accuracy
             </span>
           </div>

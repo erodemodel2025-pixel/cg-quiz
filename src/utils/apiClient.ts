@@ -1,3 +1,5 @@
+import { handleLocalApiRequest } from './localQuizEngine.ts';
+
 export interface SafeJsonResult<T = unknown> {
   ok: boolean;
   status: number;
@@ -5,7 +7,8 @@ export interface SafeJsonResult<T = unknown> {
   error: string | null;
 }
 
-const TRANSIENT_STATUSES = new Set([0, 408, 429, 502, 503, 504]);
+const TRANSIENT_STATUSES = new Set([502, 503, 504, 408, 429]);
+const STATIC_HOST_STATUSES = new Set([0, 404, 405, 501]);
 
 function looksLikeHtml(raw: string): boolean {
   const trimmed = raw.trimStart().toLowerCase();
@@ -18,10 +21,23 @@ function waitMs(ms: number): Promise<void> {
   });
 }
 
+function tryLocalFallback<T>(url: string, init?: RequestInit): SafeJsonResult<T> | null {
+  if (!url.startsWith('/api/')) return null;
+  const local = handleLocalApiRequest(url, init);
+  if (!local.handled) return null;
+  return {
+    ok: local.ok,
+    status: local.status,
+    data: local.data as T,
+    error: local.error,
+  };
+}
+
 /**
  * Safely fetches an API endpoint and parses JSON without ever throwing
  * "Failed to execute 'json' on 'Response': Unexpected end of JSON input".
- * Automatically retries once on transient empty bodies or proxy 502/503/504 hiccups.
+ * Automatically falls back to the local browser quiz engine when deployed
+ * on static/CDN hosts (e.g. Cloudflare Pages/Workers static assets returning HTTP 405/404/HTML).
  */
 export async function safeFetchJson<T = Record<string, unknown>>(
   url: string,
@@ -38,7 +54,17 @@ export async function safeFetchJson<T = Record<string, unknown>>(
       const raw = await res.text();
       const trimmed = raw.trim();
 
+      // Static/Cloudflare deploy fallback: 405 Method Not Allowed, 404, 501, or SPA HTML shell returned for /api/*
+      if (STATIC_HOST_STATUSES.has(res.status) || looksLikeHtml(trimmed)) {
+        const local = tryLocalFallback<T>(url, init);
+        if (local) return local;
+      }
+
       if (!trimmed) {
+        if (!res.ok) {
+          const local = tryLocalFallback<T>(url, init);
+          if (local) return local;
+        }
         return {
           ok: false,
           status: res.status,
@@ -62,6 +88,8 @@ export async function safeFetchJson<T = Record<string, unknown>>(
       try {
         parsed = JSON.parse(trimmed) as T & { error?: string };
       } catch {
+        const local = tryLocalFallback<T>(url, init);
+        if (local) return local;
         return {
           ok: false,
           status: res.status,
@@ -86,6 +114,8 @@ export async function safeFetchJson<T = Record<string, unknown>>(
         error: null,
       };
     } catch {
+      const local = tryLocalFallback<T>(url, init);
+      if (local) return local;
       return {
         ok: false,
         status: 0,
@@ -96,7 +126,7 @@ export async function safeFetchJson<T = Record<string, unknown>>(
   };
 
   const first = await attemptFetch();
-  if (!first.ok && (TRANSIENT_STATUSES.has(first.status) || !first.data)) {
+  if (!first.ok && TRANSIENT_STATUSES.has(first.status)) {
     await waitMs(250);
     return attemptFetch();
   }

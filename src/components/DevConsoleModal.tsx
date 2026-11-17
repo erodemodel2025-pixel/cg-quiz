@@ -25,9 +25,27 @@ const ALL_SFX: SfxName[] = [
   'bossIntro',
   'victory',
   'gameOver',
+  'drumRoll',
+  'vineBoom',
+  'sadTrombone',
+  'airhorn',
+  'bonk',
+  'oof',
+  'baDumTss',
+  'wow',
 ];
 
-const ALL_MUSIC: MusicMode[] = ['home', 'gameplay', 'boss', 'victory'];
+const ALL_MUSIC: MusicMode[] = [
+  'home',
+  'focus',
+  'gameplay',
+  'excitement',
+  'tension',
+  'boss',
+  'trophy',
+  'victory',
+  'sad',
+];
 
 export const DevConsoleModal: React.FC<DevConsoleModalProps> = ({
   open,

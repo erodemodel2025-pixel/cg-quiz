@@ -169,6 +169,7 @@ function ArcadeShell() {
                   onResumeDraft={(draft) => resumeExamDraft(draft)}
                   onOpenHowToPlay={() => setHowToPlayOpen(true)}
                   onOpenAnalytics={() => navigate('analytics')}
+                  onOpenTrophyRoom={() => navigate('leaderboard')}
                 />
               )}
               {route === 'quiz-studio' && (

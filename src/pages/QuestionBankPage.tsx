@@ -108,37 +108,39 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
         )}
       </div>
 
-      {/* Multi-Filters Bar */}
+      {/* Clean Search + Engineering Branch Filter */}
       <div className="exam-card p-4 space-y-3">
-        <input
-          type="text"
-          value={qText}
-          onChange={(e) => {
-            setQText(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Search question text, topic, chapter, or tag..."
-          className="exam-input w-full px-3.5 py-2.5 text-sm"
-        />
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <input
+            type="text"
+            value={qText}
+            onChange={(e) => {
+              setQText(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search engineering questions, formulas, or topics..."
+            className="exam-input flex-1 px-3.5 py-2.5 text-sm"
+          />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
           <select
             value={categoryId}
             onChange={(e) => {
               setCategoryId(e.target.value);
               setPage(1);
             }}
-            aria-label="Filter by category"
-            className="exam-input px-3 py-2 text-xs sm:text-sm"
+            aria-label="Filter by engineering branch"
+            className="exam-input px-3 py-2.5 text-xs sm:text-sm sm:w-52"
           >
-            <option value="all">All Categories</option>
+            <option value="all">All Engineering Branches</option>
             {EXAM_CATEGORIES.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
           </select>
+        </div>
 
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <select
             value={subject}
             onChange={(e) => {
@@ -146,7 +148,7 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
               setPage(1);
             }}
             aria-label="Filter by subject"
-            className="exam-input px-3 py-2 text-xs sm:text-sm"
+            className="exam-input px-3 py-2 text-xs"
           >
             <option value="all">All Subjects</option>
             {subjects.map((s) => (
@@ -163,7 +165,7 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
               setPage(1);
             }}
             aria-label="Filter by difficulty"
-            className="exam-input px-3 py-2 text-xs sm:text-sm"
+            className="exam-input px-3 py-2 text-xs"
           >
             <option value="all">All Difficulties</option>
             <option value="Easy">Easy</option>
@@ -179,16 +181,16 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
               setPage(1);
             }}
             aria-label="Filter by question type"
-            className="exam-input px-3 py-2 text-xs sm:text-sm"
+            className="exam-input px-3 py-2 text-xs"
           >
-            <option value="all">All Types</option>
+            <option value="all">All Formats</option>
             <option value="single">Single MCQ</option>
             <option value="multiple">Multiple Correct</option>
             <option value="truefalse">True / False</option>
             <option value="integer">Integer / Numeric</option>
             <option value="assertion_reason">Assertion / Reason</option>
             <option value="match">Match Following</option>
-            <option value="image">Image / Diagram</option>
+            <option value="image">Diagram Based</option>
           </select>
 
           <select
@@ -198,7 +200,7 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
               setPage(1);
             }}
             aria-label="Filter by source"
-            className="exam-input px-3 py-2 text-xs sm:text-sm"
+            className="exam-input px-3 py-2 text-xs"
           >
             <option value="all">All Sources</option>
             <option value="CGQUIZ GENERATED">CGQUIZ GENERATED</option>
@@ -208,7 +210,7 @@ export const QuestionBankPage: React.FC<QuestionBankPageProps> = ({ onPracticeQu
       </div>
 
       <div className="font-code text-xs text-[var(--exam-text-muted)] tabular-nums">
-        Showing {items.length} of {total} questions · Page {page} of {totalPages}
+        Showing {items.length} of {total} engineering questions · Page {page} of {totalPages}
       </div>
 
       {loading ? (

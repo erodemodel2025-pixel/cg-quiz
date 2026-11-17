@@ -165,6 +165,19 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
+  // Ensure all /api/* endpoints explicitly permit POST, GET, PUT, PATCH, DELETE & OPTIONS preflight
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CGQUIZ-DEV');
+    res.setHeader('Allow', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
   // Health & public arcade overview stats
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'cg-quiz-arcade', timestamp: new Date().toISOString() });

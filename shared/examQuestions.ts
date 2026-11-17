@@ -1,6 +1,31 @@
-import { ENGINEERING_CATEGORIES, ENGINEERING_TO_EXAM_CATEGORY } from './categories.ts';
+import {
+  ALLOWED_ENGINEERING_CATEGORY_IDS,
+  ENGINEERING_CATEGORIES,
+  ENGINEERING_TO_EXAM_CATEGORY,
+} from './categories.ts';
 import { QUESTION_BANK } from './questionBank.ts';
+import { validateQuestionBank } from './questionValidator.ts';
 import type { Difficulty, ExamDifficulty, ExamQuestion } from './types.ts';
+
+import admissionsJson from '../data/quiz/admissions.json';
+import branchesJson from '../data/quiz/branches.json';
+import careerFairJson from '../data/quiz/career-fair.json';
+import careersJson from '../data/quiz/careers.json';
+import collegesJson from '../data/quiz/colleges.json';
+import emergingTechJson from '../data/quiz/emerging-tech.json';
+import engineeringBasicsJson from '../data/quiz/engineering-basics.json';
+import gftisJson from '../data/quiz/gftis.json';
+import governmentCareersJson from '../data/quiz/government-careers.json';
+import higherStudiesJson from '../data/quiz/higher-studies.json';
+import iiitsJson from '../data/quiz/iiits.json';
+import iitsJson from '../data/quiz/iits.json';
+import jeeAdvancedJson from '../data/quiz/jee-advanced.json';
+import jeeMainJson from '../data/quiz/jee-main.json';
+import mixedJson from '../data/quiz/mixed.json';
+import nitsJson from '../data/quiz/nits.json';
+import skillsJson from '../data/quiz/skills.json';
+import technologiesJson from '../data/quiz/technologies.json';
+import tneaJson from '../data/quiz/tnea.json';
 
 const DIFF_MAP: Record<Difficulty, ExamDifficulty> = {
   EASY: 'Easy',
@@ -96,7 +121,7 @@ export const CORE_EXAM_QUESTIONS: ExamQuestion[] = [
       commonTrap: 'Forgetting to square u or using sin 45° instead of sin(2×45°).',
     },
     subject: 'Physics',
-    categoryId: 'jee',
+    categoryId: 'physics',
     chapter: 'Kinematics',
     topic: 'Projectile Motion',
     difficulty: 'Easy',
@@ -123,7 +148,7 @@ export const CORE_EXAM_QUESTIONS: ExamQuestion[] = [
       commonTrap: 'Confusing isothermal (ΔT = 0) with adiabatic (q = 0, ΔS_rev = 0).',
     },
     subject: 'Chemistry',
-    categoryId: 'jee',
+    categoryId: 'chemistry',
     chapter: 'Thermodynamics',
     topic: 'Adiabatic Processes',
     difficulty: 'Hard',
@@ -145,7 +170,7 @@ export const CORE_EXAM_QUESTIONS: ExamQuestion[] = [
       commonTrap: 'Taking k = 6 or forgetting the factor of 4 in 4ac.',
     },
     subject: 'Mathematics',
-    categoryId: 'jee',
+    categoryId: 'mathematics',
     chapter: 'Quadratic Equations',
     topic: 'Discriminant & Nature of Roots',
     difficulty: 'Easy',
@@ -167,7 +192,7 @@ export const CORE_EXAM_QUESTIONS: ExamQuestion[] = [
       commonTrap: 'Forgetting to divide by n+1 or differentiating instead of integrating.',
     },
     subject: 'Mathematics',
-    categoryId: 'jee',
+    categoryId: 'mathematics',
     chapter: 'Integral Calculus',
     topic: 'Definite Integrals',
     difficulty: 'Medium',
@@ -196,7 +221,7 @@ export const CORE_EXAM_QUESTIONS: ExamQuestion[] = [
       commonTrap: 'Thinking Lenz’s law violates Newton’s third law or opposes flux itself rather than change in flux.',
     },
     subject: 'Physics',
-    categoryId: 'jee',
+    categoryId: 'physics',
     chapter: 'Electromagnetic Induction',
     topic: 'Lenz’s Law',
     difficulty: 'Medium',
@@ -220,7 +245,7 @@ export const CORE_EXAM_QUESTIONS: ExamQuestion[] = [
       commonTrap: 'Using sin θ instead of sin² θ or omitting the factor of 2 in 2g.',
     },
     subject: 'Physics',
-    categoryId: 'jee',
+    categoryId: 'physics',
     chapter: 'Kinematics',
     topic: 'Projectile Motion',
     difficulty: 'Medium',
@@ -1323,6 +1348,42 @@ export const BRIDGED_ENGINEERING_QUESTIONS: ExamQuestion[] = QUESTION_BANK.map((
   };
 });
 
+const RAW_JSON_DATASETS: unknown[] = [
+  ...careerFairJson,
+  ...engineeringBasicsJson,
+  ...branchesJson,
+  ...careersJson,
+  ...technologiesJson,
+  ...skillsJson,
+  ...emergingTechJson,
+  ...jeeMainJson,
+  ...jeeAdvancedJson,
+  ...iitsJson,
+  ...nitsJson,
+  ...iiitsJson,
+  ...gftisJson,
+  ...tneaJson,
+  ...collegesJson,
+  ...admissionsJson,
+  ...higherStudiesJson,
+  ...governmentCareersJson,
+  ...mixedJson,
+];
+
+const VALIDATED_JSON_RESULT = validateQuestionBank(RAW_JSON_DATASETS);
+export const JSON_KNOWLEDGE_QUESTIONS: ExamQuestion[] = VALIDATED_JSON_RESULT.validQuestions;
+
+let cachedAllBuiltinQuestions: ExamQuestion[] | null = null;
+
 export function getAllBuiltinExamQuestions(): ExamQuestion[] {
-  return [...CORE_EXAM_QUESTIONS, ...BRIDGED_ENGINEERING_QUESTIONS];
+  if (cachedAllBuiltinQuestions) return cachedAllBuiltinQuestions;
+  const { validQuestions } = validateQuestionBank([
+    ...JSON_KNOWLEDGE_QUESTIONS,
+    ...CORE_EXAM_QUESTIONS,
+    ...BRIDGED_ENGINEERING_QUESTIONS,
+  ]);
+  cachedAllBuiltinQuestions = validQuestions.filter((q) =>
+    ALLOWED_ENGINEERING_CATEGORY_IDS.has(q.categoryId)
+  );
+  return cachedAllBuiltinQuestions;
 }

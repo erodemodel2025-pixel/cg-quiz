@@ -1,8 +1,15 @@
 import crypto from 'node:crypto';
+import { GoogleGenAI, Type } from '@google/genai';
 import type { Express } from 'express';
-import { EXAM_CATEGORIES } from '../shared/categories.ts';
+import { ALLOWED_ENGINEERING_CATEGORY_IDS, EXAM_CATEGORIES } from '../shared/categories.ts';
 import { getAllBuiltinExamQuestions } from '../shared/examQuestions.ts';
 import { computeExamLevel } from '../shared/progression.ts';
+import { validateQuestionBank } from '../shared/questionValidator.ts';
+import {
+  getModeScoringRules,
+  selectBalancedQuizQuestions,
+  shuffleQuestionOptions,
+} from '../shared/quizPipeline.ts';
 import type {
   AnalyticsSummary,
   DailyExamStatus,
@@ -34,6 +41,9 @@ const QUESTION_TYPES: QuestionType[] = [
   'assertion_reason',
   'match',
   'image',
+  'scenario',
+  'comparison',
+  'career_path',
 ];
 
 const BUILTIN_QUESTIONS = getAllBuiltinExamQuestions();
@@ -87,7 +97,7 @@ function getAllQuestions(includeUnverified = false): ExamQuestion[] {
   for (const c of customMap.values()) {
     merged.push(c);
   }
-  return merged;
+  return merged.filter((q) => ALLOWED_ENGINEERING_CATEGORY_IDS.has(q.categoryId));
 }
 
 function sanitizeQuestion(q: ExamQuestion): PublicExamQuestion {
@@ -374,9 +384,16 @@ export function registerExamRoutes(app: Express): void {
     const subjects = [...new Set(all.map((q) => q.subject))].sort();
     const chaptersBySubject: Record<string, string[]> = {};
     const countByCategory: Record<string, number> = {};
+    const diffByCategory: Record<string, Record<string, number>> = {};
 
     for (const q of all) {
       countByCategory[q.categoryId] = (countByCategory[q.categoryId] || 0) + 1;
+      if (!diffByCategory[q.categoryId]) {
+        diffByCategory[q.categoryId] = { Easy: 0, Medium: 0, Hard: 0, Expert: 0 };
+      }
+      diffByCategory[q.categoryId][q.difficulty] =
+        (diffByCategory[q.categoryId][q.difficulty] || 0) + 1;
+
       if (!chaptersBySubject[q.subject]) chaptersBySubject[q.subject] = [];
       if (!chaptersBySubject[q.subject].includes(q.chapter)) {
         chaptersBySubject[q.subject].push(q.chapter);
@@ -390,6 +407,7 @@ export function registerExamRoutes(app: Express): void {
       categories: EXAM_CATEGORIES.map((c) => ({
         ...c,
         questionCount: countByCategory[c.id] || 0,
+        difficultyCounts: diffByCategory[c.id] || { Easy: 0, Medium: 0, Hard: 0, Expert: 0 },
       })),
       subjects,
       chaptersBySubject,
@@ -513,18 +531,30 @@ export function registerExamRoutes(app: Express): void {
     }
   });
 
-  // 4. Start Quiz / Mock Exam Session (never leaks answers!)
+  // 4. Start Quiz / Mock Exam Session (never leaks answers, randomizes options!)
   app.post('/api/exam/start', (req, res) => {
     try {
       const userId = String(req.body?.userId ?? '').trim();
-      const mode = (String(req.body?.mode ?? 'quick') as ExamMode);
+      const mode = String(req.body?.mode ?? 'quick') as ExamMode;
       const categoryId = String(req.body?.categoryId ?? 'all');
       const subject = String(req.body?.subject ?? 'all');
       const chapter = String(req.body?.chapter ?? 'all');
       const difficulty = String(req.body?.difficulty ?? 'Adaptive') as ExamSettings['difficulty'];
       const questionType = String(req.body?.questionType ?? 'All') as ExamSettings['questionType'];
-      const negativeMarking = Math.max(0, Math.min(2, Number(req.body?.negativeMarking ?? (mode === 'mock' ? 1 : 0))));
+      const scoringRule = getModeScoringRules(
+        mode,
+        req.body?.negativeMarking !== undefined ? Number(req.body.negativeMarking) : undefined
+      );
+      const negativeMarking = scoringRule.negativeMarking;
       const requestedIds = Array.isArray(req.body?.questionIds) ? (req.body.questionIds as string[]) : null;
+      const excludeQuestionIds = Array.isArray(req.body?.excludeQuestionIds)
+        ? req.body.excludeQuestionIds.map(String)
+        : [];
+      const smartBoardMode = Boolean(req.body?.smartBoardMode);
+      const adaptiveEnabled =
+        req.body?.adaptiveEnabled !== undefined
+          ? Boolean(req.body.adaptiveEnabled)
+          : difficulty === 'Adaptive' || mode === 'adaptive';
       const isTest = req.body?.isTest === true ? 1 : 0;
 
       if (!userId) {
@@ -551,111 +581,50 @@ export function registerExamRoutes(app: Express): void {
       const all = getAllQuestions(false);
       const qMap = new Map(all.map((q) => [q.id, q]));
 
-      let pool = [...all];
-      let targetCount = Number(req.body?.questionCount ?? 10);
-      if (mode === 'quick') targetCount = 10;
-      else if (mode === 'rapid') targetCount = Math.min(12, Math.max(6, targetCount || 10));
-      else if (mode === 'daily') targetCount = 10;
-      else if (mode === 'mock') targetCount = Math.min(30, Math.max(10, targetCount || 20));
-      else if (mode === 'survival') targetCount = Math.min(25, Math.max(10, targetCount || 15));
-      else targetCount = Math.min(40, Math.max(5, targetCount || 10));
-
+      let selectedRaw: ExamQuestion[];
       if (requestedIds && requestedIds.length > 0) {
-        pool = requestedIds.map((id) => qMap.get(id)).filter((q): q is ExamQuestion => Boolean(q));
-        targetCount = pool.length;
-      } else if (mode === 'revision') {
-        const mistakeRows = db
-          .prepare('SELECT question_id FROM mistake_book WHERE user_id = ? AND resolved = 0 ORDER BY last_missed_at DESC')
-          .all(userId) as Array<{ question_id: string }>;
-        const mistakePool = mistakeRows
-          .map((m) => qMap.get(m.question_id))
+        selectedRaw = requestedIds
+          .map((id) => qMap.get(id))
           .filter((q): q is ExamQuestion => Boolean(q));
-        if (mistakePool.length === 0) {
-          res.status(400).json({ error: 'No unresolved mistakes in your Mistake Book yet.' });
-          return;
-        }
-        pool = mistakePool;
-        targetCount = Math.min(targetCount, pool.length);
-      } else if (mode === 'weak') {
-        const weakRows = db
-          .prepare(
-            `SELECT subject, topic, COUNT(*) as c FROM mistake_book
-             WHERE user_id = ? AND resolved = 0
-             GROUP BY subject, topic ORDER BY c DESC`
-          )
-          .all(userId) as Array<{ subject: string; topic: string; c: number }>;
-
-        if (weakRows.length > 0) {
-          const weakTopics = new Set(weakRows.map((w) => w.topic));
-          const weakSubjects = new Set(weakRows.map((w) => w.subject));
-          const targeted = pool.filter((q) => weakTopics.has(q.topic) || weakSubjects.has(q.subject));
-          if (targeted.length > 0) pool = targeted;
-        }
-      } else if (mode === 'rapid') {
-        // Prefer short-stem questions for rapid fire
-        const shortPool = pool.filter((q) => q.question.length <= 165 && q.questionType !== 'match');
-        if (shortPool.length >= 6) pool = shortPool;
-      }
-
-      if (!requestedIds && mode !== 'revision') {
-        if (categoryId !== 'all') {
-          const filtered = pool.filter((q) => q.categoryId === categoryId);
-          if (filtered.length > 0) pool = filtered;
-        }
-        if (subject !== 'all') {
-          const filtered = pool.filter((q) => q.subject === subject);
-          if (filtered.length > 0) pool = filtered;
-        }
-        if (chapter !== 'all') {
-          const filtered = pool.filter((q) => q.chapter === chapter);
-          if (filtered.length > 0) pool = filtered;
-        }
-        if (questionType !== 'All') {
-          const filtered = pool.filter((q) => q.questionType === questionType);
-          if (filtered.length > 0) pool = filtered;
-        }
-        if (difficulty !== 'Mixed' && difficulty !== 'Adaptive') {
-          const filtered = pool.filter((q) => q.difficulty === difficulty);
-          if (filtered.length > 0) pool = filtered;
-        }
-      }
-
-      // Deterministic daily seed for Daily Challenge so all contenders get a fair daily set
-      let selected: ExamQuestion[];
-      if (mode === 'daily') {
-        const seedStr = todayUtc();
-        let seed = 0;
-        for (let i = 0; i < seedStr.length; i++) seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0;
-        const seeded = [...pool].sort((a, b) => {
-          const ha = (a.id.charCodeAt(0) * 17 + seed) % 97;
-          const hb = (b.id.charCodeAt(0) * 17 + seed) % 97;
-          return ha - hb;
-        });
-        selected = seeded.slice(0, Math.min(10, seeded.length));
       } else {
-        selected = shuffle(pool).slice(0, Math.min(targetCount, pool.length));
+        const mistakeRows = db
+          .prepare(
+            `SELECT question_id, subject, topic FROM mistake_book
+             WHERE user_id = ? AND resolved = 0
+             ORDER BY last_missed_at DESC`
+          )
+          .all(userId) as Array<{ question_id: string; subject: string; topic: string }>;
+
+        selectedRaw = selectBalancedQuizQuestions({
+          allQuestions: all,
+          mode,
+          categoryId,
+          subject,
+          chapter,
+          difficulty,
+          questionType,
+          questionCount: Number(req.body?.questionCount ?? 0) || undefined,
+          excludeQuestionIds,
+          mistakeQuestionIds: mistakeRows.map((m) => m.question_id),
+          weakTopics: [...new Set(mistakeRows.map((m) => m.topic))],
+          weakSubjects: [...new Set(mistakeRows.map((m) => m.subject))],
+          seedStr: mode === 'daily' ? todayUtc() : undefined,
+        });
       }
 
-      // Order progressively when Adaptive or Mock
-      if (difficulty === 'Adaptive' || mode === 'mock') {
-        const order: Record<ExamDifficulty, number> = { Easy: 1, Medium: 2, Hard: 3, Expert: 4 };
-        selected.sort((a, b) => order[a.difficulty] - order[b.difficulty]);
-      }
-
-      if (selected.length === 0) {
-        selected = shuffle(all).slice(0, Math.min(targetCount, all.length));
-      }
+      // Randomize answer options per session & compute new correct keys cleanly
+      const selected = selectedRaw.map((q) => shuffleQuestionOptions(q));
 
       const defaultMinutes =
         mode === 'rapid'
           ? 2
-          : mode === 'quick'
+          : mode === 'quick' || mode === 'career_fair'
             ? 8
-            : mode === 'mock'
-              ? Math.max(15, Math.round(selected.length * 1.2))
+            : mode === 'mock' || mode === 'jee'
+              ? Math.max(15, Math.round(selected.length * 1.25))
               : mode === 'timed'
                 ? Math.max(5, Math.round(selected.length * 0.9))
-                : 30;
+                : Math.max(12, selected.length);
       const timeLimitSeconds = Math.max(
         60,
         Math.round(Number(req.body?.timeLimitMinutes ?? defaultMinutes) * 60)
@@ -675,6 +644,9 @@ export function registerExamRoutes(app: Express): void {
         questionCount: selected.length,
         timeLimitMinutes: Math.round(timeLimitSeconds / 60),
         negativeMarking,
+        smartBoardMode,
+        adaptiveEnabled,
+        excludeQuestionIds,
       };
 
       const adaptiveState: AdaptiveState = {
@@ -686,15 +658,16 @@ export function registerExamRoutes(app: Express): void {
 
       db.prepare(
         `INSERT INTO exam_sessions (
-          session_id, user_id, mode, settings_json, question_ids_json, adaptive_state_json,
-          started_at, expires_at, time_limit_seconds, status, is_test
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`
+          session_id, user_id, mode, settings_json, question_ids_json, session_questions_json,
+          adaptive_state_json, started_at, expires_at, time_limit_seconds, status, is_test
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`
       ).run(
         sessionId,
         userId,
         mode,
         JSON.stringify(settings),
         JSON.stringify(selected.map((q) => q.id)),
+        JSON.stringify(selected),
         JSON.stringify(adaptiveState),
         startedAt,
         expiresAt,
@@ -708,6 +681,7 @@ export function registerExamRoutes(app: Express): void {
         settings,
         timeLimitSeconds,
         adaptiveState,
+        scoringRule,
         questions: selected.map(sanitizeQuestion),
       });
     } catch (err) {
@@ -730,6 +704,7 @@ export function registerExamRoutes(app: Express): void {
             session_id: string;
             mode: ExamMode;
             question_ids_json: string;
+            session_questions_json?: string | null;
             adaptive_state_json: string;
             status: string;
           }
@@ -750,7 +725,18 @@ export function registerExamRoutes(app: Express): void {
         return;
       }
 
-      const q = getAllQuestions(true).find((x) => x.id === questionId);
+      let q: ExamQuestion | undefined;
+      if (session.session_questions_json) {
+        try {
+          const snapshot = JSON.parse(session.session_questions_json) as ExamQuestion[];
+          q = snapshot.find((x) => x.id === questionId);
+        } catch {
+          // fallback below
+        }
+      }
+      if (!q) {
+        q = getAllQuestions(true).find((x) => x.id === questionId);
+      }
       if (!q) {
         res.status(404).json({ error: 'Question not found.' });
         return;
@@ -765,11 +751,12 @@ export function registerExamRoutes(app: Express): void {
         sessionId
       );
 
-      // Optional adaptive swap: if remaining unasked questions exist, provide a recommended next question id
       res.json({
         correct: isCorrect,
         correctAnswer: q.answer,
         explanation: q.explanation,
+        source: q.source,
+        year: q.year,
         adaptiveState: nextAdaptive,
       });
     } catch (err) {
@@ -800,6 +787,7 @@ export function registerExamRoutes(app: Express): void {
             mode: ExamMode;
             settings_json: string;
             question_ids_json: string;
+            session_questions_json?: string | null;
             started_at: number;
             expires_at: number;
             status: string;
@@ -817,18 +805,30 @@ export function registerExamRoutes(app: Express): void {
       }
 
       const effectiveUserId = userId || session.user_id;
-      const profileBefore = ensureExamProfile(
+      ensureExamProfile(
         effectiveUserId,
         req.body?.displayName ? String(req.body.displayName) : undefined
       );
 
       const settings = JSON.parse(session.settings_json) as ExamSettings;
       const expectedIds = JSON.parse(session.question_ids_json) as string[];
-      const allQs = new Map(getAllQuestions(true).map((q) => [q.id, q]));
+      const baseQs = new Map(getAllQuestions(true).map((q) => [q.id, q]));
+      const snapshotQs = new Map<string, ExamQuestion>();
+      if (session.session_questions_json) {
+        try {
+          for (const item of JSON.parse(session.session_questions_json) as ExamQuestion[]) {
+            snapshotQs.set(item.id, item);
+          }
+        } catch {
+          // ignore snapshot parse error
+        }
+      }
+      const allQs = new Map<string, ExamQuestion>([...baseQs, ...snapshotQs]);
       const answerByQ = new Map(answersInput.map((a) => [a.questionId, a]));
 
-      const marksPerCorrect = 4;
-      const negPenalty = settings.negativeMarking || 0;
+      const scoringRule = getModeScoringRules(session.mode, settings.negativeMarking);
+      const marksPerCorrect = scoringRule.marksPerCorrect;
+      const negPenalty = scoringRule.negativeMarking;
 
       let score = 0;
       let maxScore = 0;
@@ -1863,5 +1863,99 @@ export function registerExamRoutes(app: Express): void {
     }
     const del = db.prepare('DELETE FROM exam_questions WHERE id = ?').run(req.params.id);
     res.json({ ok: true, deleted: del.changes });
+  });
+
+  // 13. Optional AI Concept Variant Generator (Strictly Validated; Clean 503 if unconfigured)
+  app.post('/api/exam/generate-ai', async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+        res.status(503).json({
+          error: 'AI generation is not configured on this server. Using curated question bank instead.',
+          fallbackAvailable: true,
+        });
+        return;
+      }
+
+      const topic = String(req.body?.topic ?? 'Engineering Foundations').trim().slice(0, 80);
+      const categoryId = String(req.body?.categoryId ?? 'engineering').trim();
+      const difficulty = (DIFFICULTIES.includes(req.body?.difficulty as ExamDifficulty)
+        ? req.body.difficulty
+        : 'Medium') as ExamDifficulty;
+      const count = Math.min(5, Math.max(1, Number(req.body?.count ?? 3)));
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      });
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-4-hydrogen',
+        contents: `Generate ${count} factual, educational multiple-choice engineering quiz questions on the topic "${topic}" at "${difficulty}" difficulty. Do not invent fake 2026 statistics, cutoff ranks, or unverified seat numbers.`,
+        config: {
+          systemInstruction:
+            'You are an engineering educator creating clean, conceptual single-choice MCQ questions for students. Every question must have exactly 4 distinct options, index 0..3 answer, clear explanation, and a Career Fair Knowledge Base source.',
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                question: { type: Type.STRING },
+                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                answer: { type: Type.INTEGER },
+                why: { type: Type.STRING },
+                concept: { type: Type.STRING },
+                shortcut: { type: Type.STRING },
+                commonTrap: { type: Type.STRING },
+                chapter: { type: Type.STRING },
+                topic: { type: Type.STRING },
+              },
+            },
+          },
+        },
+      });
+
+      const parsed = JSON.parse((response.text ?? '[]').trim()) as Array<Record<string, unknown>>;
+      const rawCandidates = parsed.map((item, idx) => ({
+        id: `ai_${Date.now()}_${idx}_${crypto.randomBytes(2).toString('hex')}`,
+        question: item.question,
+        options: item.options,
+        answer: item.answer,
+        explanation: {
+          why: item.why,
+          concept: item.concept || topic,
+          shortcut: item.shortcut || 'Analyze core engineering constraints.',
+          commonTrap: item.commonTrap || 'Double-check assumptions before selecting.',
+        },
+        subject: topic,
+        categoryId: ALLOWED_ENGINEERING_CATEGORY_IDS.has(categoryId) ? categoryId : 'engineering',
+        chapter: item.chapter || 'AI Practice Set',
+        topic: item.topic || topic,
+        difficulty,
+        questionType: 'single',
+        source: 'AI Practice Generator (Verified Schema)',
+        year: null,
+        tags: ['ai-practice', categoryId],
+        verified: true,
+      }));
+
+      const { validQuestions } = validateQuestionBank(rawCandidates);
+      if (validQuestions.length === 0) {
+        res.status(502).json({
+          error: 'Generated items did not pass strict validation. Using curated bank instead.',
+          fallbackAvailable: true,
+        });
+        return;
+      }
+
+      res.json({ questions: validQuestions });
+    } catch (err) {
+      logServerError('/api/exam/generate-ai', String(err));
+      res.status(502).json({
+        error: 'Unable to reach AI generator right now. Curated question bank remains ready.',
+        fallbackAvailable: true,
+      });
+    }
   });
 }

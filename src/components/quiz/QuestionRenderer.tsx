@@ -1,5 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Volume2, VolumeX, Mic } from 'lucide-react';
 import { arcadeAudio } from '../../audio/arcadeAudio.ts';
+import {
+  isSpeechRecognitionSupported,
+  isSpeechSynthesisSupported,
+  speakQuestion,
+  stopSpeaking,
+} from '../../utils/quizVoice.ts';
 import type { ExamUserAnswer, PublicExamQuestion } from '../../../shared/types.ts';
 import { PixelIcon } from '../pixel/PixelArtAssets.tsx';
 
@@ -12,9 +19,25 @@ interface QuestionRendererProps {
   revealCorrectAnswer?: number | number[] | string | null;
   isBookmarked?: boolean;
   onToggleBookmark?: () => void;
+  smartBoardMode?: boolean;
+  voiceListening?: boolean;
+  onToggleVoiceCommand?: () => void;
 }
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+const TYPE_LABEL: Record<string, string> = {
+  single: 'MCQ',
+  multiple: 'Multi-Select',
+  truefalse: 'True / False',
+  integer: 'Numeric',
+  assertion_reason: 'Assertion & Reason',
+  match: 'Match',
+  image: 'Diagram',
+  scenario: 'Scenario',
+  comparison: 'Comparison',
+  career_path: 'Career Path',
+};
 
 export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   question,
@@ -24,8 +47,31 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   revealCorrectAnswer = null,
   isBookmarked = false,
   onToggleBookmark,
+  smartBoardMode = false,
+  voiceListening = false,
+  onToggleVoiceCommand,
 }) => {
   const revealed = revealCorrectAnswer !== null && revealCorrectAnswer !== undefined;
+  const [speaking, setSpeaking] = useState(false);
+
+  useEffect(() => {
+    setSpeaking(false);
+    stopSpeaking();
+    return () => {
+      stopSpeaking();
+    };
+  }, [question.id]);
+
+  const handleToggleSpeak = () => {
+    arcadeAudio.playSfx('click');
+    if (speaking) {
+      stopSpeaking();
+      setSpeaking(false);
+      return;
+    }
+    const ok = speakQuestion(question, () => setSpeaking(false));
+    if (ok) setSpeaking(true);
+  };
 
   const renderChoiceBox = (opt: string, idx: number, isMulti: boolean) => {
     const selectedArr = Array.isArray(userAnswer) ? userAnswer.map(Number) : [];
@@ -77,10 +123,14 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
         disabled={disabled}
         onClick={handleClick}
         aria-pressed={isSelected}
-        className={`voxel-tile w-full min-h-[56px] px-4 py-3.5 text-left flex items-center gap-3.5 cursor-pointer disabled:cursor-default ${styleClass}`}
+        className={`voxel-tile w-full ${
+          smartBoardMode ? 'min-h-[68px] px-5 py-4' : 'min-h-[54px] px-4 py-3.5'
+        } text-left flex items-center gap-3.5 cursor-pointer disabled:cursor-default ${styleClass}`}
       >
         <span
-          className={`w-9 h-9 border-2 flex items-center justify-center font-pixel text-xs shrink-0 ${
+          className={`${
+            smartBoardMode ? 'w-11 h-11 text-sm' : 'w-9 h-9 text-xs'
+          } border-2 flex items-center justify-center font-pixel shrink-0 ${
             isSelected && !revealed
               ? 'bg-[var(--voxel-gold)] text-[#0B0F1A] border-[#0B0F1A]'
               : isCorrectOption
@@ -93,11 +143,17 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           {OPTION_LETTERS[idx] ?? idx + 1}
         </span>
 
-        <span className="flex-1 text-sm sm:text-base font-semibold leading-snug">{opt}</span>
+        <span
+          className={`flex-1 font-semibold leading-snug ${
+            smartBoardMode ? 'text-base sm:text-xl' : 'text-sm sm:text-base'
+          }`}
+        >
+          {opt}
+        </span>
 
         {isSelected && !revealed && (
           <span className="text-[var(--voxel-gold)] shrink-0">
-            <PixelIcon name="check" size={16} />
+            <PixelIcon name="check" size={smartBoardMode ? 20 : 16} />
           </span>
         )}
       </button>
@@ -105,40 +161,81 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   };
 
   return (
-    <div className="exam-card p-5 sm:p-7">
-      {/* Compact Metadata Header */}
-      <div className="flex items-start justify-between gap-3 mb-4">
+    <div className={`exam-card ${smartBoardMode ? 'p-6 sm:p-9' : 'p-5 sm:p-7'}`}>
+      {/* Compact Metadata + Voice Controls Header */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 mb-4">
         <div className="flex flex-wrap items-center gap-2 text-xs font-display-pixel">
           <span className="px-2 py-0.5 bg-[var(--exam-accent-soft)] border-2 border-[var(--exam-border)] text-[var(--exam-accent)]">
             {question.subject}
           </span>
           <span className="text-[var(--exam-text-muted)]">
-            {question.chapter} · {question.difficulty}
+            {question.topic} · {question.difficulty} · {TYPE_LABEL[question.questionType] || 'Quiz'}
           </span>
         </div>
 
-        {onToggleBookmark && (
-          <button
-            type="button"
-            onClick={() => {
-              arcadeAudio.playSfx('click');
-              onToggleBookmark();
-            }}
-            aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark question'}
-            className={`px-2.5 py-1.5 border-2 font-display-pixel text-xs flex items-center gap-1.5 cursor-pointer shrink-0 ${
-              isBookmarked
-                ? 'bg-[var(--exam-warning-soft)] border-[var(--exam-warning)] text-[var(--exam-warning)]'
-                : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-muted)] hover:text-[var(--exam-text)]'
-            }`}
-          >
-            <PixelIcon name="bookmark" size={13} />
-            <span className="hidden sm:inline">{isBookmarked ? 'SAVED' : 'SAVE'}</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {isSpeechSynthesisSupported() && (
+            <button
+              type="button"
+              onClick={handleToggleSpeak}
+              aria-label={speaking ? 'Stop reading question' : 'Read question aloud'}
+              className={`min-h-[38px] px-2.5 py-1.5 border-2 font-display-pixel text-xs flex items-center gap-1.5 cursor-pointer ${
+                speaking
+                  ? 'bg-[var(--exam-accent-soft)] border-[var(--exam-accent)] text-[var(--exam-accent)]'
+                  : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-muted)] hover:text-[var(--exam-text)]'
+              }`}
+            >
+              {speaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{speaking ? 'STOP' : 'READ'}</span>
+            </button>
+          )}
+
+          {onToggleVoiceCommand && isSpeechRecognitionSupported() && (
+            <button
+              type="button"
+              onClick={() => {
+                arcadeAudio.playSfx('click');
+                onToggleVoiceCommand();
+              }}
+              aria-label="Push to talk voice command"
+              className={`min-h-[38px] px-2.5 py-1.5 border-2 font-display-pixel text-xs flex items-center gap-1.5 cursor-pointer ${
+                voiceListening
+                  ? 'bg-[var(--exam-danger-soft)] border-[var(--exam-danger)] text-[var(--exam-danger)] animate-pulse'
+                  : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-muted)] hover:text-[var(--exam-text)]'
+              }`}
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>{voiceListening ? 'LISTENING...' : 'VOICE'}</span>
+            </button>
+          )}
+
+          {onToggleBookmark && (
+            <button
+              type="button"
+              onClick={() => {
+                arcadeAudio.playSfx('click');
+                onToggleBookmark();
+              }}
+              aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark question'}
+              className={`min-h-[38px] px-2.5 py-1.5 border-2 font-display-pixel text-xs flex items-center gap-1.5 cursor-pointer ${
+                isBookmarked
+                  ? 'bg-[var(--exam-warning-soft)] border-[var(--exam-warning)] text-[var(--exam-warning)]'
+                  : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)] text-[var(--exam-text-muted)] hover:text-[var(--exam-text)]'
+              }`}
+            >
+              <PixelIcon name="bookmark" size={13} />
+              <span className="hidden sm:inline">{isBookmarked ? 'SAVED' : 'SAVE'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Highly Readable Question Prompt */}
-      <h2 className="text-lg sm:text-xl font-bold text-[var(--exam-text)] leading-relaxed mb-5">
+      <h2
+        className={`font-bold text-[var(--exam-text)] leading-relaxed mb-5 ${
+          smartBoardMode ? 'text-xl sm:text-3xl' : 'text-lg sm:text-xl'
+        }`}
+      >
         {question.question}
       </h2>
 
@@ -190,7 +287,9 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
             value={userAnswer === null || userAnswer === undefined ? '' : String(userAnswer)}
             onChange={(e) => onChangeAnswer(e.target.value)}
             placeholder="e.g. 9"
-            className="exam-input w-full sm:max-w-xs px-4 py-3 font-code text-base font-bold"
+            className={`exam-input w-full sm:max-w-xs px-4 py-3 font-code font-bold ${
+              smartBoardMode ? 'text-xl min-h-[60px]' : 'text-base min-h-[48px]'
+            }`}
           />
           {revealed && (
             <div className="font-display-pixel text-sm text-[var(--exam-success)] pt-1">
@@ -225,7 +324,11 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
                       : 'bg-[var(--exam-surface-alt)] border-[var(--exam-border)]'
                   }`}
                 >
-                  <div className="text-sm sm:text-base font-semibold text-[var(--exam-text)]">
+                  <div
+                    className={`font-semibold text-[var(--exam-text)] ${
+                      smartBoardMode ? 'text-base sm:text-lg' : 'text-sm sm:text-base'
+                    }`}
+                  >
                     <span className="font-code text-[var(--exam-accent)] mr-2">{rowIdx + 1}.</span>
                     {leftLabel}
                   </div>
@@ -238,7 +341,9 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
                       next[rowIdx] = Number(e.target.value);
                       onChangeAnswer(next);
                     }}
-                    className="exam-input px-3 py-2 text-sm min-h-[44px] sm:w-72"
+                    className={`exam-input px-3 py-2 text-sm sm:w-72 ${
+                      smartBoardMode ? 'min-h-[54px] text-base' : 'min-h-[48px]'
+                    }`}
                   >
                     <option value={-1}>Select match...</option>
                     {question.matchPairs!.right.map((rOpt, rIdx) => (
@@ -272,6 +377,15 @@ export const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           )}
         </div>
       )}
+
+      {/* Subtle Verified Source Transparency Line */}
+      <div className="mt-5 pt-3 border-t border-[var(--exam-border)] flex flex-wrap items-center justify-between gap-2 font-code text-[11px] text-[var(--exam-text-muted)]">
+        <span>
+          Source: {question.source}
+          {question.year ? ` (${question.year})` : ''}
+        </span>
+        <span>{question.lastUpdated ? `Updated ${question.lastUpdated}` : 'Verified Concept'}</span>
+      </div>
     </div>
   );
 };

@@ -77,7 +77,7 @@ export const MistakesPage: React.FC<MistakesPageProps> = ({ onStartRevision }) =
       prev.map((m) => (m.questionId === questionId ? { ...m, mistakeCategory: cat } : m))
     );
     if (!isOnline) return;
-    await fetch(`/api/exam/mistakes/${encodeURIComponent(questionId)}`, {
+    await safeFetchJson(`/api/exam/mistakes/${encodeURIComponent(questionId)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: examUserId, mistakeCategory: cat }),
@@ -87,7 +87,7 @@ export const MistakesPage: React.FC<MistakesPageProps> = ({ onStartRevision }) =
   const resolveOrRemove = async (questionId: string) => {
     setMistakes((prev) => prev.filter((m) => m.questionId !== questionId));
     if (!isOnline) return;
-    await fetch(
+    await safeFetchJson(
       `/api/exam/mistakes/${encodeURIComponent(questionId)}?userId=${encodeURIComponent(examUserId)}`,
       { method: 'DELETE' }
     );

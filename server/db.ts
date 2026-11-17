@@ -197,6 +197,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_exam_questions_cat ON exam_questions(category_id, subject, difficulty);
 `);
 
+// Safe additive column migration for per-session option-shuffled question snapshots
+try {
+  const cols = db.prepare('PRAGMA table_info(exam_sessions)').all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'session_questions_json')) {
+    db.exec('ALTER TABLE exam_sessions ADD COLUMN session_questions_json TEXT');
+  }
+} catch {
+  // ignore if already present
+}
+
 export function logServerError(endpoint: string, message: string): void {
   try {
     db.prepare(
