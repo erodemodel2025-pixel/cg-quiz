@@ -187,6 +187,20 @@ export const EasyQuizPage: React.FC<EasyQuizPageProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reset quiz/results immediately if user logs out
+  useEffect(() => {
+    if (!player && stage !== 'select') {
+      submittedSessionRef.current = '';
+      answersMapRef.current = {};
+      setSessionId('');
+      setQuestions([]);
+      setAnswersMap({});
+      setInstantFeedback(null);
+      setResultPayload(null);
+      setStage('select');
+    }
+  }, [player, stage]);
+
   useEffect(() => {
     if (stage === 'playing' || stage === 'submitting') setMusicMode('focus');
     else if (stage === 'results') setMusicMode('victory');

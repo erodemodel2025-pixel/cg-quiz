@@ -287,7 +287,11 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const registerPlayer = useCallback(
     async (name: string, className: ClassOption, isTest = false) => {
       try {
-        const res = await safeFetchJson<{ player?: PlayerProfile; error?: string }>(
+        const res = await safeFetchJson<{
+          player?: PlayerProfile;
+          signedInExisting?: boolean;
+          error?: string;
+        }>(
           '/api/players/register',
           {
             method: 'POST',
@@ -302,7 +306,7 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         arcadeAudio.playSfx('coin');
         updateLocalPlayer(res.data.player);
         triggerCelebration(
-          'PLAYER REGISTERED',
+          res.data.signedInExisting ? 'WELCOME BACK' : 'PLAYER REGISTERED',
           `${res.data.player.name} (${res.data.player.className})`,
           '#00F0FF'
         );
@@ -381,15 +385,18 @@ export const ArcadeProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 
   const clearPlayerSession = useCallback(() => {
+    arcadeAudio.playSfx('click');
     setPlayer(null);
     setActiveTheme('cyber-midnight');
     try {
       localStorage.removeItem(PLAYER_STORAGE_KEY);
       localStorage.removeItem(LEGACY_STORAGE_KEY);
+      sessionStorage.removeItem('cgquiz_last_game_session');
     } catch {
       // ignore
     }
-  }, []);
+    triggerCelebration('SIGNED OUT', 'Logged out cleanly. Sign in anytime to continue.', '#94A3B8');
+  }, [triggerCelebration]);
 
   return (
     <ArcadeContext.Provider

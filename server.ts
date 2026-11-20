@@ -227,8 +227,14 @@ async function startServer() {
           res.json({ player: rowToPlayer(existingByName), migrated: true });
           return;
         }
+        // Allow returning player to sign back into their existing profile when class matches
+        if (existingByName.class_name === className) {
+          res.json({ player: rowToPlayer(existingByName), signedInExisting: true });
+          return;
+        }
         res.status(409).json({
-          error: 'That player name is already registered. Choose a unique handle.',
+          error:
+            'That handle is already registered in a different class. Choose a unique handle or select its matching class to sign back in.',
         });
         return;
       }

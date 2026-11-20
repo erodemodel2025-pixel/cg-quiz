@@ -8,6 +8,7 @@ import {
   Gamepad2,
   Home,
   LineChart,
+  LogOut,
   Menu,
   Moon,
   Smartphone,
@@ -62,6 +63,7 @@ export const TopNav: React.FC<TopNavProps> = ({
     toggleMusic,
     isOnline,
     unlockAchievement,
+    clearPlayerSession,
   } = useArcade();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -170,23 +172,38 @@ export const TopNav: React.FC<TopNavProps> = ({
         {/* Zone 3: Crisp Action & Menu Controls */}
         <div className="flex items-center gap-2.5 shrink-0">
           {player ? (
-            <button
-              type="button"
-              onClick={() => handleNav('profile')}
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[var(--studio-surface-2)] border border-[var(--studio-border-strong)] hover:border-[var(--studio-accent-text)] text-xs cursor-pointer transition-colors"
-            >
-              <span className="w-6 h-6 rounded-md bg-[#2563EB] text-white font-heading font-bold flex items-center justify-center text-xs">
-                {player.name.charAt(0).toUpperCase()}
-              </span>
-              <span className="text-left leading-tight">
-                <span className="block font-sora font-bold text-xs text-[var(--studio-text)] max-w-[110px] truncate">
-                  {player.name}
+            <div className="hidden sm:inline-flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleNav('profile')}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[var(--studio-surface-2)] border border-[var(--studio-border-strong)] hover:border-[var(--studio-accent-text)] text-xs cursor-pointer transition-colors"
+              >
+                <span className="w-6 h-6 rounded-md bg-[#2563EB] text-white font-heading font-bold flex items-center justify-center text-xs">
+                  {player.name.charAt(0).toUpperCase()}
                 </span>
-                <span className="block font-mono-tech text-[10px] font-bold text-[var(--studio-accent-text)] tabular-nums">
-                  LVL {player.level} · {player.xp} XP
+                <span className="text-left leading-tight">
+                  <span className="block font-sora font-bold text-xs text-[var(--studio-text)] max-w-[110px] truncate">
+                    {player.name}
+                  </span>
+                  <span className="block font-mono-tech text-[10px] font-bold text-[var(--studio-accent-text)] tabular-nums">
+                    LVL {player.level} · {player.xp} XP
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearPlayerSession();
+                  setMenuOpen(false);
+                }}
+                aria-label="Log out"
+                title="Log out"
+                className="studio-btn studio-btn-ghost text-xs px-2.5 py-2 min-h-[38px] text-[var(--studio-rose-text)] hover:border-[#F43F5E]"
+              >
+                <LogOut size={14} />
+                <span className="hidden xl:inline">Log Out</span>
+              </button>
+            </div>
           ) : (
             <button
               type="button"
@@ -233,18 +250,34 @@ export const TopNav: React.FC<TopNavProps> = ({
                   {player ? player.name : 'Creator Mode'}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  arcadeAudio.playSfx('click');
-                  setMenuOpen(false);
-                  if (player) onNavigate('profile');
-                  else onOpenRegister();
-                }}
-                className="studio-btn studio-btn-primary text-xs px-3 py-1.5 min-h-[34px]"
-              >
-                {player ? 'Profile' : 'Set Name'}
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    arcadeAudio.playSfx('click');
+                    setMenuOpen(false);
+                    if (player) onNavigate('profile');
+                    else onOpenRegister();
+                  }}
+                  className="studio-btn studio-btn-primary text-xs px-3 py-1.5 min-h-[34px]"
+                >
+                  {player ? 'Profile' : 'Set Name'}
+                </button>
+                {player && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      clearPlayerSession();
+                    }}
+                    aria-label="Log out of account"
+                    className="studio-btn studio-btn-ghost text-xs px-2.5 py-1.5 min-h-[34px] text-[var(--studio-rose-text)] hover:border-[#F43F5E]"
+                  >
+                    <LogOut size={13} />
+                    <span>Log Out</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-1.5">

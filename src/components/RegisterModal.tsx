@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, UserPlus, X } from 'lucide-react';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
 import { useArcade } from '../context/ArcadeContext.tsx';
@@ -22,6 +22,10 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
   const [className, setClassName] = useState<ClassOption | ''>('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) setError('');
+  }, [open]);
 
   if (!open) return null;
 
@@ -93,7 +97,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
 
         <p className="text-sm text-[var(--studio-text-secondary)] mb-5">
           {subtitle ||
-            'Choose a unique creator handle and class to earn XP, save 3D vehicles and smartphones, and rank on the leaderboard.'}
+            'Enter a new handle to create a profile, or enter your existing Creator Name and Class to sign back in and continue earning XP.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

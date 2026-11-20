@@ -5,6 +5,7 @@ import {
   Check,
   Flame,
   Lock,
+  LogOut,
   Palette,
   Smartphone,
   Trash2,
@@ -63,7 +64,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   }, [loadCreations]);
 
   useEffect(() => {
-    if (!player) return;
+    if (!player) {
+      setHistory([]);
+      return;
+    }
     setLoadingHistory(true);
     void safeFetchJson<{ history?: SubmissionRecord[] }>(
       `/api/players/${encodeURIComponent(player.id)}`
@@ -148,12 +152,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  arcadeAudio.playSfx('click');
                   clearPlayerSession();
                 }}
-                className="text-[var(--studio-rose-text)] hover:underline cursor-pointer"
+                className="studio-btn studio-btn-ghost px-3.5 py-1.5 min-h-[34px] text-xs text-[var(--studio-rose-text)] hover:border-[#F43F5E]"
               >
-                Switch Account
+                <LogOut size={14} /> Log Out
               </button>
             </div>
           </div>
