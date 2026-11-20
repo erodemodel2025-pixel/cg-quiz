@@ -206,6 +206,45 @@ db.exec(`
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+
+  /* ============================================================
+     SMART QUIZ ARENA: Unified Game Sessions & Results Leaderboard
+     ============================================================ */
+  CREATE TABLE IF NOT EXISTS game_sessions (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    difficulty TEXT NOT NULL,
+    category TEXT NOT NULL,
+    question_count INTEGER NOT NULL,
+    time_limit_seconds INTEGER NOT NULL,
+    question_ids_json TEXT NOT NULL,
+    session_questions_json TEXT NOT NULL,
+    started_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    completed_at INTEGER,
+    status TEXT NOT NULL DEFAULT 'active',
+    is_test INTEGER NOT NULL DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS game_results (
+    result_id TEXT PRIMARY KEY,
+    session_id TEXT UNIQUE NOT NULL,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    correct_answers INTEGER NOT NULL,
+    incorrect_answers INTEGER NOT NULL,
+    unanswered INTEGER NOT NULL,
+    total_questions INTEGER NOT NULL,
+    accuracy REAL NOT NULL,
+    completion_time INTEGER NOT NULL,
+    difficulty TEXT NOT NULL,
+    category TEXT NOT NULL,
+    xp_earned INTEGER NOT NULL DEFAULT 0,
+    details_json TEXT NOT NULL DEFAULT '[]',
+    is_test INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
 `);
 
 // Safe index creation for fast query/analytics performance
@@ -214,6 +253,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_mistake_book_user ON mistake_book(user_id, resolved, last_missed_at DESC);
   CREATE INDEX IF NOT EXISTS idx_exam_questions_cat ON exam_questions(category_id, subject, difficulty);
   CREATE INDEX IF NOT EXISTS idx_creations_user ON creations(user_id, updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_game_sessions_user ON game_sessions(user_id, started_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_game_results_user ON game_results(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_game_results_score ON game_results(is_test, score DESC, accuracy DESC, completion_time ASC);
 `);
 
 // Safe additive column migration for per-session option-shuffled question snapshots

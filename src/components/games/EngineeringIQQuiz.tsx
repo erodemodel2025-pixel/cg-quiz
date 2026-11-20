@@ -77,7 +77,7 @@ export const EngineeringIQQuiz: React.FC<EngineeringIQQuizProps> = ({
   }, [stage]);
 
   const startQuiz = async (chosenMode: QuizMode = mode) => {
-    if (chosenMode === 'competitive' && !player) {
+    if (!player) {
       soundManager.playWrong();
       onRequireRegister();
       return;
@@ -217,8 +217,12 @@ export const EngineeringIQQuiz: React.FC<EngineeringIQQuizProps> = ({
           }
         }
         setStage('results');
+      } else {
+        submittedRef.current = false;
+        reportError(res.error || 'Score submission was rejected by server.');
       }
     } catch (err) {
+      submittedRef.current = false;
       reportError(String(err));
     } finally {
       setLoading(false);

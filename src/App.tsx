@@ -204,6 +204,8 @@ function ArcadeShell() {
                 <EasyQuizPage
                   onOpenAdvancedStudio={() => navigate('quiz-studio')}
                   onOpenArena={() => navigate('arcade')}
+                  onOpenLeaderboard={() => navigate('leaderboard')}
+                  onRequireRegister={() => setRegisterOpen(true)}
                 />
               )}
               {route === 'auto-engineer' && (

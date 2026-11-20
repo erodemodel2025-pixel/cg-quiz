@@ -799,12 +799,20 @@ export function registerExamRoutes(app: Express): void {
         res.status(404).json({ error: 'Quiz session not found.' });
         return;
       }
+      if (!userId) {
+        res.status(401).json({ error: 'User authentication is required to submit this quiz.' });
+        return;
+      }
+      if (session.user_id !== userId) {
+        res.status(403).json({ error: 'Forbidden: session belongs to a different user.' });
+        return;
+      }
       if (session.status !== 'active') {
         res.status(409).json({ error: 'This quiz session was already submitted.' });
         return;
       }
 
-      const effectiveUserId = userId || session.user_id;
+      const effectiveUserId = session.user_id;
       ensureExamProfile(
         effectiveUserId,
         req.body?.displayName ? String(req.body.displayName) : undefined

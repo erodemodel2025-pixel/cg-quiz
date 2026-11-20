@@ -1,12 +1,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Award, Crown, Drum, Medal, Play, Shield, Trophy, Volume2 } from 'lucide-react';
+import {
+  Award,
+  Crown,
+  Drum,
+  Play,
+  RefreshCw,
+  Trophy,
+  Volume2,
+} from 'lucide-react';
 import {
   CLASS_OPTIONS,
   type AnalyticsSummary,
-  type ExamLeaderboardRow,
+  type GameDifficultyId,
+  type GameLeaderboardEntry,
+  type GameLeaderboardView,
   type LeaderboardEntry,
 } from '../../shared/types.ts';
 import { arcadeAudio } from '../audio/arcadeAudio.ts';
+import { AnimatedPodium } from '../components/quiz/AnimatedPodium.tsx';
 import { useArcade } from '../context/ArcadeContext.tsx';
 import { safeFetchJson } from '../utils/apiClient.ts';
 
@@ -21,21 +32,28 @@ interface TrophyDef {
   earned: boolean;
 }
 
+interface GameLeaderboardApiResponse {
+  view: GameLeaderboardView;
+  rankingMethodDescription: string;
+  totalPlayers: number;
+  top3: GameLeaderboardEntry[];
+  entries: GameLeaderboardEntry[];
+  currentUserEntry: GameLeaderboardEntry | null;
+}
+
 export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete }) => {
   const { player, examUserId, setMusicMode, reportError } = useArcade();
 
-  const [hallView, setHallView] = useState<'vault' | 'rankings'>('vault');
-  const [tab, setTab] = useState<'exam' | 'competitive' | 'practice' | 'arcade'>('exam');
-  const [period, setPeriod] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
+  const [hallView, setHallView] = useState<'rankings' | 'vault'>('rankings');
+  const [boardTab, setBoardTab] = useState<'highest' | 'overall' | 'arcade'>('highest');
+  const [diffFilter, setDiffFilter] = useState<'all' | GameDifficultyId>('all');
   const [className, setClassName] = useState<string>('all');
   const [search, setSearch] = useState('');
 
-  const [examRows, setExamRows] = useState<ExamLeaderboardRow[]>([]);
+  const [gameBoard, setGameBoard] = useState<GameLeaderboardApiResponse | null>(null);
   const [arcadeRows, setArcadeRows] = useState<LeaderboardEntry[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [displayNameInput, setDisplayNameInput] = useState(player?.name || '');
-  const [nameSavedMsg, setNameSavedMsg] = useState('');
   const [celebratingTrophy, setCelebratingTrophy] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,21 +68,26 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
       );
       if (aRes.ok && aRes.data) setAnalytics(aRes.data);
 
-      if (tab === 'exam') {
-        const qs = new URLSearchParams({ period, search });
-        const res = await safeFetchJson<{ entries?: ExamLeaderboardRow[] }>(
-          `/api/exam/leaderboard?${qs.toString()}`
-        );
-        if (res.ok && res.data && Array.isArray(res.data.entries)) {
-          setExamRows(res.data.entries);
-        }
-      } else {
-        const qs = new URLSearchParams({ tab, className, search });
+      if (boardTab === 'arcade') {
+        const qs = new URLSearchParams({ tab: 'arcade', className, search });
         const res = await safeFetchJson<{ entries?: LeaderboardEntry[] }>(
           `/api/leaderboard?${qs.toString()}`
         );
         if (res.ok && res.data && Array.isArray(res.data.entries)) {
           setArcadeRows(res.data.entries);
+        }
+      } else {
+        const qs = new URLSearchParams({
+          view: boardTab,
+          difficulty: diffFilter,
+          search,
+          userId: player?.id || '',
+        });
+        const res = await safeFetchJson<GameLeaderboardApiResponse>(
+          `/api/game/leaderboard?${qs.toString()}`
+        );
+        if (res.ok && res.data) {
+          setGameBoard(res.data);
         }
       }
     } catch (err) {
@@ -72,27 +95,11 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
     } finally {
       setLoading(false);
     }
-  }, [tab, period, className, search, examUserId, reportError]);
+  }, [boardTab, className, diffFilter, examUserId, player?.id, reportError, search]);
 
   useEffect(() => {
     void loadLeaderboard();
   }, [loadLeaderboard]);
-
-  const saveDisplayName = async (e: React.FormEvent) => {
-    e.preventDefault();
-    arcadeAudio.playSfx('coin');
-    const trimmed = displayNameInput.trim();
-    const res = await safeFetchJson('/api/exam/profile/display-name', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: examUserId, displayName: trimmed }),
-    });
-    if (res.ok) {
-      setNameSavedMsg('Saved!');
-      void loadLeaderboard();
-      window.setTimeout(() => setNameSavedMsg(''), 2500);
-    }
-  };
 
   const totalXp = (analytics?.streaks.examXp ?? 0) + (player?.xp ?? 0);
   const totalRuns = (analytics?.totalQuizzes ?? 0) + (player?.gamesPlayed ?? 0);
@@ -122,24 +129,28 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
 
   const earnedCount = trophies.filter((t) => t.earned).length;
 
-  const podiumEntries =
-    tab === 'exam'
-      ? examRows.slice(0, 3).map((r) => ({
-          rank: r.rank,
-          name: r.displayName,
-          sub: r.levelTitle,
-          metric: `${r.xp} XP`,
-        }))
-      : arcadeRows.slice(0, 3).map((e, i) => ({
-          rank: i + 1,
-          name: e.playerName,
-          sub: e.className,
-          metric: `${e.bestScore} PTS`,
-        }));
+  // Map arcade rows for podium when Arcade Mini-Games tab is selected
+  const arcadeTop3: GameLeaderboardEntry[] = arcadeRows.slice(0, 3).map((e, i) => ({
+    rank: i + 1,
+    userId: e.playerId,
+    username: e.playerName,
+    className: e.className,
+    title: e.title,
+    score: e.bestScore,
+    bestScore: e.bestScore,
+    totalPoints: e.totalScore,
+    gamesPlayed: e.gamesCount,
+    accuracy: Math.round(e.accuracy),
+    completionTime: 0,
+    difficulty: e.gameType,
+    category: 'arcade',
+    createdAt: '',
+  }));
 
-  const firstPlace = podiumEntries[0];
-  const secondPlace = podiumEntries[1];
-  const thirdPlace = podiumEntries[2];
+  const activeTop3 = boardTab === 'arcade' ? arcadeTop3 : gameBoard?.top3 || [];
+  const activeCurrentEntry = boardTab === 'arcade' ? null : gameBoard?.currentUserEntry || null;
+  const activeTotalPlayers =
+    boardTab === 'arcade' ? arcadeRows.length : gameBoard?.totalPlayers || 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
@@ -152,10 +163,10 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
             </div>
             <div>
               <div className="font-mono-tech text-xs font-bold text-[var(--studio-amber-text)] tracking-widest uppercase">
-                Hall of Studio Champions
+                Live Database Leaderboard
               </div>
               <h1 className="font-heading font-bold text-2xl sm:text-3xl text-[var(--studio-text)] mt-0.5">
-                Leaderboard &amp; Trophy Room
+                Championship Podium &amp; Trophy Room
               </h1>
               <p className="text-xs sm:text-sm text-[var(--studio-text-secondary)] mt-0.5">
                 {earnedCount} / {trophies.length} Studio Trophies Unlocked · {totalXp} Total XP
@@ -186,27 +197,15 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
               }}
               className="studio-btn studio-btn-primary text-xs px-4"
             >
-              <Play size={14} fill="currentColor" /> Compete Now
+              <Play size={14} fill="currentColor" /> Play Quiz
             </button>
           </div>
         </div>
       </section>
 
-      {/* View Switcher & Division Tabs */}
+      {/* Primary Section Tabs + Leaderboard View Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              arcadeAudio.playSfx('click');
-              setHallView('vault');
-            }}
-            className={`studio-btn text-xs sm:text-sm px-4 ${
-              hallView === 'vault' ? 'studio-btn-primary' : 'studio-btn-ghost'
-            }`}
-          >
-            <Crown size={15} /> Podium &amp; Vault
-          </button>
           <button
             type="button"
             onClick={() => {
@@ -217,15 +216,27 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
               hallView === 'rankings' ? 'studio-btn-primary' : 'studio-btn-ghost'
             }`}
           >
-            <Award size={15} /> Full Rankings
+            <Award size={15} /> Leaderboard &amp; Podium
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              setHallView('vault');
+            }}
+            className={`studio-btn text-xs sm:text-sm px-4 ${
+              hallView === 'vault' ? 'studio-btn-amber' : 'studio-btn-ghost'
+            }`}
+          >
+            <Crown size={15} /> Trophy Vault ({earnedCount}/{trophies.length})
           </button>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {(
             [
-              { id: 'exam', label: 'Quiz XP' },
-              { id: 'competitive', label: 'Ranked' },
+              { id: 'highest', label: 'Highest Single Score' },
+              { id: 'overall', label: 'Overall Performance' },
               { id: 'arcade', label: 'Mini-Games' },
             ] as const
           ).map((t) => (
@@ -234,10 +245,11 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
               type="button"
               onClick={() => {
                 arcadeAudio.playSfx('click');
-                setTab(t.id);
+                setBoardTab(t.id);
+                setHallView('rankings');
               }}
               className={`studio-btn text-xs px-3.5 py-1.5 min-h-[36px] ${
-                tab === t.id ? 'studio-btn-cyan' : 'studio-btn-ghost'
+                boardTab === t.id ? 'studio-btn-cyan' : 'studio-btn-ghost'
               }`}
             >
               {t.label}
@@ -246,58 +258,46 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
         </div>
       </div>
 
-      {/* CHAMPIONSHIP PODIUM */}
-      <section className="studio-card-solid p-6 sm:p-8">
-        <h2 className="font-heading font-bold text-lg text-[var(--studio-text)] flex items-center gap-2 mb-6">
-          <Crown size={18} className="text-[var(--studio-amber-text)]" /> Top 3 Champions
-        </h2>
-
-        <div className="grid grid-cols-3 items-end gap-3 sm:gap-5 max-w-3xl mx-auto pt-2">
-          {/* #2 SILVER */}
-          <div className="flex flex-col items-center text-center">
-            <Medal size={28} className="text-[var(--studio-text-muted)] mb-2" />
-            <div className="font-sora text-xs sm:text-sm font-bold text-[var(--studio-text)] truncate max-w-full px-1">
-              {secondPlace ? secondPlace.name : 'Open #2'}
-            </div>
-            <div className="font-mono-tech text-[11px] font-bold text-[var(--studio-text-muted)] mb-2">
-              {secondPlace ? secondPlace.metric : '—'}
-            </div>
-            <div className="w-full h-24 sm:h-28 rounded-t-xl bg-[#475569] border-2 border-[#94A3B8] text-white flex flex-col items-center justify-center">
-              <span className="font-heading font-bold text-xl">#2</span>
-              <span className="font-mono-tech text-[10px] font-bold">SILVER</span>
-            </div>
+      {/* LIVE ANIMATED PODIUM */}
+      <section className="studio-card-solid p-6 sm:p-8 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-heading font-bold text-lg sm:text-xl text-[var(--studio-text)] flex items-center gap-2">
+              <Crown size={19} className="text-[var(--studio-amber-text)]" />
+              {boardTab === 'highest'
+                ? 'Top 3 — Highest Single Score'
+                : boardTab === 'overall'
+                  ? 'Top 3 — Overall Performance (Total Points)'
+                  : 'Top 3 — Arcade Mini-Games'}
+            </h2>
+            {boardTab !== 'arcade' && gameBoard?.rankingMethodDescription && (
+              <p className="text-xs text-[var(--studio-text-secondary)] mt-0.5">
+                {gameBoard.rankingMethodDescription}
+              </p>
+            )}
           </div>
 
-          {/* #1 GOLD */}
-          <div className="flex flex-col items-center text-center">
-            <Crown size={34} className="text-[var(--studio-amber-text)] mb-2" />
-            <div className="font-sora text-xs sm:text-base font-bold text-[var(--studio-amber-text)] truncate max-w-full px-1">
-              {firstPlace ? firstPlace.name : 'Claim #1'}
-            </div>
-            <div className="font-mono-tech text-xs font-bold text-[var(--studio-emerald-text)] mb-2">
-              {firstPlace ? firstPlace.metric : 'Play Now'}
-            </div>
-            <div className="w-full h-32 sm:h-36 rounded-t-xl bg-[#D97706] border-2 border-[#FDE68A] text-white flex flex-col items-center justify-center shadow-lg">
-              <span className="font-heading font-bold text-2xl">#1</span>
-              <span className="font-mono-tech text-[10px] font-bold">CHAMPION</span>
-            </div>
-          </div>
-
-          {/* #3 BRONZE */}
-          <div className="flex flex-col items-center text-center">
-            <Shield size={28} className="text-[#EA580C] mb-2" />
-            <div className="font-sora text-xs sm:text-sm font-bold text-[var(--studio-text)] truncate max-w-full px-1">
-              {thirdPlace ? thirdPlace.name : 'Open #3'}
-            </div>
-            <div className="font-mono-tech text-[11px] font-bold text-[var(--studio-text-muted)] mb-2">
-              {thirdPlace ? thirdPlace.metric : '—'}
-            </div>
-            <div className="w-full h-20 sm:h-24 rounded-t-xl bg-[#9A3412] border-2 border-[#FB923C] text-white flex flex-col items-center justify-center">
-              <span className="font-heading font-bold text-xl">#3</span>
-              <span className="font-mono-tech text-[10px] font-bold">BRONZE</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              arcadeAudio.playSfx('click');
+              void loadLeaderboard();
+            }}
+            className="studio-btn studio-btn-ghost text-xs px-3 py-1.5 min-h-[34px]"
+          >
+            <RefreshCw size={13} /> Refresh
+          </button>
         </div>
+
+        <AnimatedPodium
+          top3={activeTop3}
+          currentUserId={player?.id}
+          currentUserEntry={activeCurrentEntry}
+          metricLabel={boardTab === 'overall' ? 'Total Points' : 'Best Score'}
+          totalPlayers={activeTotalPlayers}
+          emptyActionLabel="Play First Quiz Match"
+          onEmptyAction={onPlayCompete}
+        />
       </section>
 
       {hallView === 'vault' ? (
@@ -358,69 +358,17 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
         </section>
       ) : (
         <section className="space-y-4">
-          <form
-            onSubmit={saveDisplayName}
-            className="studio-card-solid p-4 flex flex-wrap items-center justify-between gap-3"
-          >
-            <label
-              htmlFor="scoreboard-player-name"
-              className="font-mono-tech text-xs font-bold text-[var(--studio-accent-text)] uppercase"
-            >
-              Leaderboard Plaque Name
-            </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                id="scoreboard-player-name"
-                type="text"
-                value={displayNameInput}
-                onChange={(e) => setDisplayNameInput(e.target.value)}
-                maxLength={32}
-                placeholder="Anonymous Builder"
-                className="studio-input px-3 py-2 text-sm w-44 sm:w-56"
-              />
-              <button type="submit" className="studio-btn studio-btn-primary text-xs min-h-[38px] py-1.5">
-                Save
-              </button>
-              {nameSavedMsg && (
-                <span className="font-mono-tech text-xs font-bold text-[var(--studio-emerald-text)]">
-                  {nameSavedMsg}
-                </span>
-              )}
-            </div>
-          </form>
-
+          {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search creator name..."
+              placeholder="Search player username..."
               className="studio-input flex-1 px-3.5 py-2 text-sm"
             />
 
-            {tab === 'exam' ? (
-              <div className="flex gap-1.5">
-                {(
-                  [
-                    { id: 'daily', label: 'Today' },
-                    { id: 'weekly', label: 'Week' },
-                    { id: 'monthly', label: 'Month' },
-                    { id: 'all', label: 'All' },
-                  ] as const
-                ).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setPeriod(p.id)}
-                    className={`studio-btn text-xs px-3 py-1.5 min-h-[38px] ${
-                      period === p.id ? 'studio-btn-primary' : 'studio-btn-ghost'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            ) : (
+            {boardTab === 'arcade' ? (
               <select
                 value={className}
                 onChange={(e) => setClassName(e.target.value)}
@@ -434,25 +382,35 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
                   </option>
                 ))}
               </select>
+            ) : (
+              <select
+                value={diffFilter}
+                onChange={(e) => setDiffFilter(e.target.value as 'all' | GameDifficultyId)}
+                aria-label="Filter by difficulty"
+                className="studio-input px-3 py-2 text-sm"
+              >
+                <option value="all">All Difficulties</option>
+                <option value="easy">Level 1 – Easy (+10)</option>
+                <option value="moderate">Level 2 – Moderate (+20)</option>
+                <option value="hard">Level 3 – Hard (+30)</option>
+                <option value="jee">Level 4 – JEE Aspirants (+50)</option>
+              </select>
             )}
           </div>
 
           {loading ? (
             <div className="studio-card-solid p-8 text-center font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
-              Loading leaderboard rankings...
+              Loading verified rankings from database...
             </div>
-          ) : tab === 'exam' ? (
-            examRows.length === 0 ? (
+          ) : boardTab === 'arcade' ? (
+            arcadeRows.length === 0 ? (
               <div className="studio-card-solid p-8 text-center space-y-4">
                 <Trophy size={40} className="mx-auto text-[var(--studio-amber-text)]" />
                 <div className="font-heading font-bold text-lg text-[var(--studio-text)]">
-                  No Champions Yet
+                  No Arcade Runs Recorded Yet
                 </div>
-                <p className="text-sm text-[var(--studio-text-secondary)]">
-                  Finish a quiz to claim your spot on the Golden Podium!
-                </p>
                 <button type="button" onClick={onPlayCompete} className="studio-btn studio-btn-primary text-xs">
-                  Start Quiz
+                  Start Playing
                 </button>
               </div>
             ) : (
@@ -462,51 +420,54 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
                     <tr className="border-b border-[var(--studio-border)] font-mono-tech text-xs text-[var(--studio-text-muted)]">
                       <th className="py-3 px-4">#</th>
                       <th className="py-3 px-4">PLAYER</th>
-                      <th className="py-3 px-4 hidden sm:table-cell">RANK TITLE</th>
-                      <th className="py-3 px-4 text-right">XP</th>
+                      <th className="py-3 px-4 hidden sm:table-cell">CLASS</th>
+                      <th className="py-3 px-4 text-right">BEST SCORE</th>
                       <th className="py-3 px-4 text-right">ACC</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {examRows.map((r) => {
-                      const isMe = r.playerId === examUserId;
-                      return (
-                        <tr
-                          key={r.playerId}
-                          className={`border-b border-[var(--studio-border)] last:border-0 ${
-                            isMe ? 'bg-[var(--studio-surface-2)]' : ''
-                          }`}
-                        >
-                          <td className="py-3 px-4 font-mono-tech text-xs font-bold text-[var(--studio-amber-text)]">
-                            {r.rank}
-                          </td>
-                          <td className="py-3 px-4 font-sora font-bold text-[var(--studio-text)]">
-                            {r.displayName} {isMe ? '★' : ''}
-                          </td>
-                          <td className="py-3 px-4 hidden sm:table-cell font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
-                            {r.levelTitle}
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono-tech text-xs font-bold text-[var(--studio-text)]">
-                            {r.xp}
-                          </td>
-                          <td className="py-3 px-4 text-right font-mono-tech font-bold text-[var(--studio-emerald-text)]">
-                            {r.accuracy}%
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {arcadeRows.map((e, idx) => (
+                      <tr
+                        key={e.playerId}
+                        className={`border-b border-[var(--studio-border)] last:border-0 ${
+                          player?.id === e.playerId ? 'bg-[var(--studio-surface-2)]' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-mono-tech text-xs font-bold text-[var(--studio-amber-text)]">
+                          {idx + 1}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-sora font-bold text-[var(--studio-text)]">
+                            {e.playerName}
+                          </div>
+                          <div className="text-xs text-[var(--studio-text-muted)]">{e.title}</div>
+                        </td>
+                        <td className="py-3 px-4 hidden sm:table-cell text-[var(--studio-text-secondary)]">
+                          {e.className}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
+                          {e.bestScore}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono-tech font-bold text-[var(--studio-emerald-text)]">
+                          {Math.round(e.accuracy)}%
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             )
-          ) : arcadeRows.length === 0 ? (
+          ) : !gameBoard || gameBoard.entries.length === 0 ? (
             <div className="studio-card-solid p-8 text-center space-y-4">
               <Trophy size={40} className="mx-auto text-[var(--studio-amber-text)]" />
               <div className="font-heading font-bold text-lg text-[var(--studio-text)]">
-                No Runs Recorded
+                No Completed Matches Recorded Yet
               </div>
+              <p className="text-sm text-[var(--studio-text-secondary)]">
+                Complete a quiz game to publish your verified score onto the live database leaderboard.
+              </p>
               <button type="button" onClick={onPlayCompete} className="studio-btn studio-btn-primary text-xs">
-                Start Playing
+                Play Quiz Now
               </button>
             </div>
           ) : (
@@ -514,39 +475,59 @@ export const LeaderboardPage: React.FC<LeaderboardPageProps> = ({ onPlayCompete 
               <table className="w-full text-left text-sm tabular-nums">
                 <thead>
                   <tr className="border-b border-[var(--studio-border)] font-mono-tech text-xs text-[var(--studio-text-muted)]">
-                    <th className="py-3 px-4">#</th>
-                    <th className="py-3 px-4">PLAYER</th>
-                    <th className="py-3 px-4 hidden sm:table-cell">CLASS</th>
-                    <th className="py-3 px-4 text-right">SCORE</th>
-                    <th className="py-3 px-4 text-right">ACC</th>
+                    <th className="py-3 px-4">RANK</th>
+                    <th className="py-3 px-4">USERNAME</th>
+                    <th className="py-3 px-4 hidden sm:table-cell">
+                      {boardTab === 'highest' ? 'DIFFICULTY' : 'GAMES PLAYED'}
+                    </th>
+                    <th className="py-3 px-4 text-right">
+                      {boardTab === 'highest' ? 'BEST SCORE' : 'TOTAL POINTS'}
+                    </th>
+                    <th className="py-3 px-4 text-right">ACCURACY</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {arcadeRows.map((e, idx) => (
-                    <tr
-                      key={e.playerId}
-                      className={`border-b border-[var(--studio-border)] last:border-0 ${
-                        player?.id === e.playerId ? 'bg-[var(--studio-surface-2)]' : ''
-                      }`}
-                    >
-                      <td className="py-3 px-4 font-mono-tech text-xs font-bold text-[var(--studio-amber-text)]">
-                        {idx + 1}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-sora font-bold text-[var(--studio-text)]">{e.playerName}</div>
-                        <div className="text-xs text-[var(--studio-text-muted)]">{e.title}</div>
-                      </td>
-                      <td className="py-3 px-4 hidden sm:table-cell text-[var(--studio-text-secondary)]">
-                        {e.className}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono-tech text-xs font-bold text-[var(--studio-accent-text)]">
-                        {e.bestScore}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono-tech font-bold text-[var(--studio-emerald-text)]">
-                        {Math.round(e.accuracy)}%
-                      </td>
-                    </tr>
-                  ))}
+                  {gameBoard.entries.map((entry) => {
+                    const isMe = Boolean(player?.id && entry.userId === player.id);
+                    return (
+                      <tr
+                        key={entry.userId}
+                        className={`border-b border-[var(--studio-border)] last:border-0 ${
+                          isMe ? 'bg-[var(--studio-surface-2)]' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-4 font-mono-tech text-xs font-bold text-[var(--studio-amber-text)]">
+                          {entry.rank === 1
+                            ? '🥇 #1'
+                            : entry.rank === 2
+                              ? '🥈 #2'
+                              : entry.rank === 3
+                                ? '🥉 #3'
+                                : `#${entry.rank}`}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-sora font-bold text-[var(--studio-text)]">
+                            {entry.username} {isMe ? '★ (You)' : ''}
+                          </div>
+                          <div className="text-xs text-[var(--studio-text-muted)]">
+                            {entry.className} · {entry.gamesPlayed}{' '}
+                            {entry.gamesPlayed === 1 ? 'game' : 'games'}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 hidden sm:table-cell font-mono-tech text-xs uppercase text-[var(--studio-accent-text)]">
+                          {boardTab === 'highest'
+                            ? entry.difficulty
+                            : `${entry.gamesPlayed} games (best ${entry.bestScore})`}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono-tech text-sm font-bold text-[var(--studio-emerald-text)]">
+                          {entry.score} pts
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono-tech text-xs font-bold text-[var(--studio-text)]">
+                          {entry.accuracy}%
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

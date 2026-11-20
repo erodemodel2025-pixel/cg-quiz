@@ -29,6 +29,7 @@ import {
 } from './shared/types.ts';
 import { db, logServerError } from './server/db.ts';
 import { registerExamRoutes } from './server/examRoutes.ts';
+import { registerGameRoutes } from './server/gameRoutes.ts';
 
 const PORT = Number(process.env.PORT || 3000);
 const DEV_HEADER_TOKEN = 'arcade-matrix-dev';
@@ -568,6 +569,19 @@ async function startServer() {
         : [];
       const bossWon = Boolean(req.body?.bossWon);
 
+      if (!playerId) {
+        res.status(401).json({ error: 'Authentication required to submit a quiz score.' });
+        return;
+      }
+
+      const registeredPlayer = db
+        .prepare('SELECT id FROM players WHERE id = ?')
+        .get(playerId);
+      if (!registeredPlayer) {
+        res.status(401).json({ error: 'Registered player account required to submit scores.' });
+        return;
+      }
+
       const session = db
         .prepare('SELECT * FROM quiz_sessions WHERE session_id = ?')
         .get(sessionId) as
@@ -588,6 +602,10 @@ async function startServer() {
 
       if (!session) {
         res.status(404).json({ error: 'Quiz session not found.' });
+        return;
+      }
+      if (session.player_id && session.player_id !== playerId) {
+        res.status(403).json({ error: 'Forbidden: session belongs to a different player.' });
         return;
       }
       if (session.status !== 'active') {
@@ -1402,6 +1420,15 @@ async function startServer() {
   app.post('/api/studio/easy-complete', (req, res) => {
     try {
       const userId = req.body?.userId ? String(req.body.userId).trim() : null;
+      if (!userId) {
+        res.status(401).json({ error: 'Authentication required to record quiz score.' });
+        return;
+      }
+      const playerExists = db.prepare('SELECT id FROM players WHERE id = ?').get(userId);
+      if (!playerExists) {
+        res.status(401).json({ error: 'Registered player account required to record score.' });
+        return;
+      }
       const categoryId = String(req.body?.categoryId ?? 'general-knowledge');
       const difficulty = String(req.body?.difficulty ?? 'Easy');
       const correctCount = Math.max(0, Number(req.body?.correctCount ?? 0));
@@ -1410,28 +1437,16 @@ async function startServer() {
       const accuracy = Math.round((correctCount / totalQuestions) * 100);
       const xpEarned = Math.max(15, correctCount * 12 + (accuracy >= 80 ? 25 : 0));
 
-      let playerResult: PlayerProfile | null = null;
-      let leveledUp = false;
-      let unlockedAchievements: string[] = [];
-
-      if (userId) {
-        const playerExists = db.prepare('SELECT id FROM players WHERE id = ?').get(userId);
-        if (playerExists) {
-          const achs = ['first_run'];
-          if (accuracy >= 80) achs.push('easy_scholar');
-          if (maxStreak >= 5) achs.push('streak_master');
-          if (accuracy === 100 && totalQuestions >= 5) achs.push('perfect_run');
-          const prog = updatePlayerProgression({
-            playerId: userId,
-            xpEarned,
-            maxStreak,
-            newAchievements: achs,
-          });
-          playerResult = prog.player;
-          leveledUp = prog.leveledUp;
-          unlockedAchievements = prog.unlockedAchievements;
-        }
-      }
+      const achs = ['first_run'];
+      if (accuracy >= 80) achs.push('easy_scholar');
+      if (maxStreak >= 5) achs.push('streak_master');
+      if (accuracy === 100 && totalQuestions >= 5) achs.push('perfect_run');
+      const prog = updatePlayerProgression({
+        playerId: userId,
+        xpEarned,
+        maxStreak,
+        newAchievements: achs,
+      });
 
       res.json({
         categoryId,
@@ -1440,9 +1455,9 @@ async function startServer() {
         totalQuestions,
         accuracy,
         xpEarned,
-        leveledUp,
-        unlockedAchievements,
-        player: playerResult,
+        leveledUp: prog.leveledUp,
+        unlockedAchievements: prog.unlockedAchievements,
+        player: prog.player,
       });
     } catch (err) {
       logServerError('/api/studio/easy-complete', String(err));
@@ -1457,6 +1472,8 @@ async function startServer() {
     }
     const delSubs = db.prepare('DELETE FROM submissions WHERE is_test = 1').run().changes;
     const delSessions = db.prepare('DELETE FROM quiz_sessions WHERE is_test = 1').run().changes;
+    const delGameResults = db.prepare('DELETE FROM game_results WHERE is_test = 1').run().changes;
+    const delGameSessions = db.prepare('DELETE FROM game_sessions WHERE is_test = 1').run().changes;
     const delPlayers = db.prepare('DELETE FROM players WHERE is_test = 1').run().changes;
     const delExamAttempts = db.prepare('DELETE FROM exam_attempts WHERE is_test = 1').run().changes;
     const delExamSessions = db.prepare('DELETE FROM exam_sessions WHERE is_test = 1').run().changes;
@@ -1466,6 +1483,8 @@ async function startServer() {
         testPlayers: delPlayers,
         testSessions: delSessions,
         testSubmissions: delSubs,
+        testGameResults: delGameResults,
+        testGameSessions: delGameSessions,
         testExamAttempts: delExamAttempts,
         testExamSessions: delExamSessions,
         testCreations: delCreations,
@@ -1473,6 +1492,9 @@ async function startServer() {
       preservedRealData: true,
     });
   });
+
+  // Mount Smart Quiz Arena (4-Difficulty + Podium + Leaderboard) API Routes
+  registerGameRoutes(app, { updatePlayerProgression });
 
   // Mount v2 Competitive Quiz Platform & Analytics API Routes
   registerExamRoutes(app);

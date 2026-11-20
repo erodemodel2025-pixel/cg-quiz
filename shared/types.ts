@@ -488,3 +488,113 @@ export interface SavedCreation {
   updatedAt: string;
 }
 
+/* ============================================================
+   SMART QUIZ ARENA: 4 DIFFICULTIES, PODIUM & LEADERBOARD TYPES
+   ============================================================ */
+
+export type GameDifficultyId = 'easy' | 'moderate' | 'hard' | 'jee';
+
+export type GameCategoryId =
+  | 'all'
+  | 'physics'
+  | 'chemistry'
+  | 'mathematics'
+  | 'computer-science'
+  | 'engineering'
+  | 'automobile'
+  | 'general-stem';
+
+export type GameLeaderboardView = 'highest' | 'overall';
+
+export interface GameDifficultyConfig {
+  id: GameDifficultyId;
+  levelNumber: 1 | 2 | 3 | 4;
+  name: string;
+  shortLabel: string;
+  description: string;
+  exampleStyle: string;
+  marksPerCorrect: 10 | 20 | 30 | 50;
+  marksWrong: 0;
+  marksUnanswered: 0;
+  accentColor: string;
+}
+
+export interface SmartGameQuestion {
+  id: string;
+  difficulty: GameDifficultyId;
+  category: Exclude<GameCategoryId, 'all'>;
+  topic: string;
+  question: string;
+  options: [string, string, string, string];
+  correctIndex: 0 | 1 | 2 | 3;
+  explanation: string;
+  marks: 10 | 20 | 30 | 50;
+}
+
+export type PublicSmartQuestion = Omit<SmartGameQuestion, 'correctIndex' | 'explanation'>;
+
+export interface GameEvaluatedItem {
+  questionId: string;
+  topic: string;
+  category: string;
+  question: string;
+  options: [string, string, string, string];
+  selectedIndex: number;
+  correctIndex: 0 | 1 | 2 | 3;
+  isCorrect: boolean;
+  isUnanswered: boolean;
+  pointsAwarded: number;
+  explanation: string;
+}
+
+export interface GameLeaderboardEntry {
+  rank: number;
+  userId: string;
+  username: string;
+  className: string;
+  title: string;
+  score: number;
+  bestScore: number;
+  totalPoints: number;
+  gamesPlayed: number;
+  accuracy: number;
+  completionTime: number;
+  difficulty: string;
+  category: string;
+  createdAt: string;
+}
+
+export interface GameResultPayload {
+  resultId: string;
+  sessionId: string;
+  userId: string;
+  username: string;
+  score: number;
+  maxPossibleScore: number;
+  marksPerCorrect: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  unanswered: number;
+  totalQuestions: number;
+  accuracy: number;
+  completionTime: number;
+  difficulty: GameDifficultyId;
+  category: string;
+  highestRank: number | null;
+  overallRank: number | null;
+  totalRankedPlayers: number;
+  enteredTop3Highest: boolean;
+  enteredTop3Overall: boolean;
+  top3Highest: GameLeaderboardEntry[];
+  top3Overall: GameLeaderboardEntry[];
+  currentUserHighestEntry: GameLeaderboardEntry | null;
+  currentUserOverallEntry: GameLeaderboardEntry | null;
+  xpEarned: number;
+  leveledUp: boolean;
+  unlockedAchievements: string[];
+  player: PlayerProfile | null;
+  details: GameEvaluatedItem[];
+  createdAt: string;
+}
+
+
