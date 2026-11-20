@@ -35,7 +35,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
       return;
     }
     if (!className) {
-      setError('Select your class before entering the arcade.');
+      setError('Select your class before entering the studio.');
       arcadeAudio.playSfx('wrong');
       return;
     }
@@ -55,11 +55,11 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
-        className="pixel-panel max-w-md w-full p-6 relative"
+        className="studio-card-solid max-w-md w-full p-6 relative border-2 border-[var(--studio-border-strong)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -72,32 +72,37 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
             onClose();
           }}
           aria-label="Close registration modal"
-          className="pixel-btn pixel-btn-ghost p-2 absolute top-4 right-4"
+          className="studio-btn studio-btn-ghost p-2 min-h-[36px] absolute top-4 right-4"
         >
           <X size={16} />
         </button>
 
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-[#00F0FF] text-[#04060E] border-2 border-white flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shrink-0 shadow-md">
             <UserPlus size={20} />
           </div>
-          <h2 id="register-modal-title" className="font-pixel text-sm sm:text-base text-[#FFE600]">
-            PLAYER SIGN-IN
-          </h2>
+          <div>
+            <h2 id="register-modal-title" className="font-heading font-bold text-lg text-[var(--studio-text)]">
+              Studio Sign-In
+            </h2>
+            <p className="font-mono-tech text-[11px] font-bold uppercase tracking-wider text-[var(--studio-accent-text)]">
+              Save Progress, Cars &amp; Smartphones
+            </p>
+          </div>
         </div>
 
-        <p className="text-sm text-[var(--text-secondary)] mb-5">
+        <p className="text-sm text-[var(--studio-text-secondary)] mb-5">
           {subtitle ||
-            'Register your unique handle and class to save XP, unlock themes, and post official competitive scores.'}
+            'Choose a unique creator handle and class to earn XP, save 3D vehicles and smartphones, and rank on the leaderboard.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
               htmlFor="player-name-input"
-              className="block font-pixel text-[10px] text-[var(--accent-primary)] mb-2"
+              className="block font-mono-tech text-xs font-bold uppercase tracking-wider text-[var(--studio-accent-text)] mb-2"
             >
-              PLAYER NAME
+              Creator Name
             </label>
             <input
               id="player-name-input"
@@ -105,15 +110,15 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={40}
-              placeholder="e.g. PixelTesla"
-              className="pixel-input w-full px-3 py-2.5 text-base"
+              placeholder="e.g. NovaEngineer"
+              className="studio-input w-full px-3.5 py-2.5 text-base"
               autoFocus
             />
           </div>
 
           <div>
-            <span className="block font-pixel text-[10px] text-[var(--accent-primary)] mb-2">
-              SELECT CLASS
+            <span className="block font-mono-tech text-xs font-bold uppercase tracking-wider text-[var(--studio-accent-text)] mb-2">
+              Select Class
             </span>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {CLASS_OPTIONS.map((cls) => {
@@ -126,10 +131,8 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                       arcadeAudio.playSfx('click');
                       setClassName(cls);
                     }}
-                    className={`py-2.5 px-2 text-xs font-bold border-2 cursor-pointer transition-colors ${
-                      selected
-                        ? 'bg-[#FFE600] text-[#04060E] border-white'
-                        : 'bg-[var(--bg-deep)] text-[var(--text-secondary)] border-[var(--border-pixel)] hover:border-[var(--accent-primary)]'
+                    className={`studio-btn text-xs py-2 px-2 min-h-[38px] ${
+                      selected ? 'studio-btn-primary' : 'studio-btn-ghost'
                     }`}
                   >
                     {cls.replace('Class ', 'Cls ')}
@@ -140,8 +143,8 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
           </div>
 
           {error && (
-            <div className="bg-[#3B0D11] border-2 border-[#FF4D4D] text-[#FFD1D1] px-3 py-2 text-sm flex items-center gap-2">
-              <AlertTriangle size={16} className="shrink-0 text-[#FF6B6B]" />
+            <div className="rounded-xl bg-[#DC2626] text-white px-3.5 py-2.5 text-sm font-medium flex items-center gap-2">
+              <AlertTriangle size={16} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
@@ -153,16 +156,16 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                 arcadeAudio.playSfx('click');
                 onClose();
               }}
-              className="pixel-btn pixel-btn-ghost flex-1 py-3 text-[10px]"
+              className="studio-btn studio-btn-ghost flex-1 py-2.5 text-xs sm:text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="pixel-btn pixel-btn-green flex-1 py-3 text-[10px]"
+              className="studio-btn studio-btn-primary flex-1 py-2.5 text-xs sm:text-sm"
             >
-              {submitting ? 'Saving...' : 'Start Playing'}
+              {submitting ? 'Saving...' : 'Enter Studio'}
             </button>
           </div>
         </form>

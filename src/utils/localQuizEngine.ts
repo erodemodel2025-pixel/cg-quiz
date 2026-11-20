@@ -41,6 +41,7 @@ import type {
   PlayerProfile,
   PublicExamQuestion,
   QuizMode,
+  SavedCreation,
   SpeedClass,
   TopicStat,
 } from '../../shared/types.ts';
@@ -100,6 +101,7 @@ interface LocalStore {
   dailyCompletions: Record<string, DailyExamStatus>;
   arcadeLeaderboard: StoredLeaderboardEntry[];
   customQuestions: ExamQuestion[];
+  creations: SavedCreation[];
 }
 
 function emptyStore(): LocalStore {
@@ -114,6 +116,7 @@ function emptyStore(): LocalStore {
     dailyCompletions: {},
     arcadeLeaderboard: [],
     customQuestions: [],
+    creations: [],
   };
 }
 
@@ -1351,6 +1354,112 @@ export function handleLocalApiRequest(urlStr: string, init?: RequestInit): Local
 
   if (pathname === '/api/daily-challenge' && method === 'GET') {
     return ok({ challenge: getDailyChallengeForDate(todayUtc()) });
+  }
+
+  // 14. Creations & Easy Quiz Studio fallback
+  if (pathname === '/api/creations' && method === 'GET') {
+    const userId = (params.get('userId') || '').trim();
+    const type = params.get('type') || 'all';
+    const list = (store.creations || []).filter(
+      (c) => (!userId || c.userId === userId) && (type === 'all' || c.type === type)
+    );
+    return ok({ creations: list });
+  }
+
+  if (pathname === '/api/creations' && method === 'POST') {
+    const userId = String(body.userId ?? 'guest_studio').trim() || 'guest_studio';
+    const type = body.type === 'phone' ? 'phone' : 'car';
+    const now = new Date().toISOString();
+    const id = String(body.id || `cr_local_${type}_${Date.now()}`);
+    const existingIdx = (store.creations || []).findIndex((c) => c.id === id && c.userId === userId);
+    const creation: SavedCreation = {
+      id,
+      userId,
+      type,
+      title: String(body.title ?? 'Custom Design'),
+      subtitle: String(body.subtitle ?? ''),
+      designRating: Math.max(0, Math.min(100, Math.round(Number(body.designRating ?? 80)))),
+      estimatedCost: Math.max(0, Math.round(Number(body.estimatedCost ?? 0))),
+      payload: (body.payload as Record<string, unknown>) || {},
+      previewDataUrl: typeof body.previewDataUrl === 'string' ? body.previewDataUrl : null,
+      createdAt: existingIdx >= 0 ? store.creations[existingIdx].createdAt : now,
+      updatedAt: now,
+    };
+    if (!store.creations) store.creations = [];
+    if (existingIdx >= 0) {
+      store.creations[existingIdx] = creation;
+    } else {
+      store.creations.unshift(creation);
+    }
+
+    const xpAward = existingIdx >= 0 ? 20 : 50;
+    let updatedPlayer: PlayerProfile | null = null;
+    let leveledUp = false;
+    if (store.players[userId]) {
+      const p = store.players[userId];
+      const prevLvl = p.level;
+      p.xp += xpAward;
+      const lvl = computeLevelFromXp(p.xp);
+      p.level = lvl.level;
+      p.title = lvl.title;
+      p.unlockedThemes = getUnlockedThemesForLevel(lvl.level);
+      leveledUp = lvl.level > prevLvl;
+      updatedPlayer = p;
+    }
+    writeStore(store);
+    return ok({
+      creation,
+      xpEarned: xpAward,
+      leveledUp,
+      unlockedAchievements: [],
+      player: updatedPlayer,
+    });
+  }
+
+  if (pathname.startsWith('/api/creations/') && method === 'DELETE') {
+    const id = decodeURIComponent(pathname.replace('/api/creations/', ''));
+    const userId = params.get('userId') || '';
+    store.creations = (store.creations || []).filter((c) => !(c.id === id && (!userId || c.userId === userId)));
+    writeStore(store);
+    return ok({ deleted: true });
+  }
+
+  if (pathname === '/api/studio/easy-complete' && method === 'POST') {
+    const userId = body.userId ? String(body.userId) : null;
+    const correctCount = Math.max(0, Number(body.correctCount ?? 0));
+    const totalQuestions = Math.max(1, Number(body.totalQuestions ?? 10));
+    const maxStreak = Math.max(0, Number(body.maxStreak ?? 0));
+    const accuracy = Math.round((correctCount / totalQuestions) * 100);
+    const xpEarned = Math.max(15, correctCount * 12 + (accuracy >= 80 ? 25 : 0));
+
+    let updatedPlayer: PlayerProfile | null = null;
+    let leveledUp = false;
+    if (userId && store.players[userId]) {
+      const p = store.players[userId];
+      const prevLvl = p.level;
+      p.xp += xpEarned;
+      p.gamesPlayed += 1;
+      p.streakBest = Math.max(p.streakBest, maxStreak);
+      const lvl = computeLevelFromXp(p.xp);
+      p.level = lvl.level;
+      p.title = lvl.title;
+      p.unlockedThemes = getUnlockedThemesForLevel(lvl.level);
+      leveledUp = lvl.level > prevLvl;
+      updatedPlayer = p;
+      writeStore(store);
+    }
+
+    return ok({
+      categoryId: String(body.categoryId ?? 'general-knowledge'),
+      difficulty: String(body.difficulty ?? 'Easy'),
+      correctCount,
+      totalQuestions,
+      accuracy,
+      xpEarned,
+      leveledUp,
+      unlockedAchievements: [],
+      player: updatedPlayer,
+    });
   }
 
   return { handled: false, ok: false, status: 404, data: null, error: null };

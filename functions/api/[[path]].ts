@@ -733,6 +733,61 @@ export async function onRequest(context: PagesContext): Promise<Response> {
       return jsonResponse({ entries: [] });
     }
 
+    if (path === '/api/creations' && method === 'GET') {
+      return jsonResponse({ creations: [] });
+    }
+
+    if (path === '/api/creations' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const now = new Date().toISOString();
+      const type = body.type === 'phone' ? 'phone' : 'car';
+      return jsonResponse(
+        {
+          creation: {
+            id: String(body.id || `cr_${type}_${Date.now()}`),
+            userId: String(body.userId || 'guest_studio'),
+            type,
+            title: String(body.title || 'Custom Design'),
+            subtitle: String(body.subtitle || ''),
+            designRating: Number(body.designRating ?? 82),
+            estimatedCost: Number(body.estimatedCost ?? 0),
+            payload: (body.payload as Record<string, unknown>) || {},
+            previewDataUrl: typeof body.previewDataUrl === 'string' ? body.previewDataUrl : null,
+            createdAt: now,
+            updatedAt: now,
+          },
+          xpEarned: 50,
+          leveledUp: false,
+          unlockedAchievements: [],
+          player: null,
+        },
+        201
+      );
+    }
+
+    if (path.startsWith('/api/creations/') && method === 'DELETE') {
+      return jsonResponse({ deleted: true });
+    }
+
+    if (path === '/api/studio/easy-complete' && method === 'POST') {
+      const body = await parseJsonBody(request);
+      const correctCount = Math.max(0, Number(body.correctCount ?? 0));
+      const totalQuestions = Math.max(1, Number(body.totalQuestions ?? 10));
+      const accuracy = Math.round((correctCount / totalQuestions) * 100);
+      const xpEarned = Math.max(15, correctCount * 12 + (accuracy >= 80 ? 25 : 0));
+      return jsonResponse({
+        categoryId: String(body.categoryId ?? 'general-knowledge'),
+        difficulty: String(body.difficulty ?? 'Easy'),
+        correctCount,
+        totalQuestions,
+        accuracy,
+        xpEarned,
+        leveledUp: false,
+        unlockedAchievements: [],
+        player: null,
+      });
+    }
+
     return jsonResponse({ error: `API endpoint not found: ${method} ${path}` }, 404);
   } catch (err) {
     return jsonResponse(

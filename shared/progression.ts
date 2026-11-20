@@ -137,9 +137,37 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: 'night_owl',
     name: 'MIDNIGHT LAB',
-    description: 'Trained in the engineering arcade after midnight.',
+    description: 'Trained in the engineering studio after midnight.',
     xpBonus: 60,
     category: 'secret',
+  },
+  {
+    id: 'easy_scholar',
+    name: 'KNOWLEDGE SPARK',
+    description: 'Complete an Easy Quiz Zone round with 80%+ accuracy.',
+    xpBonus: 80,
+    category: 'gameplay',
+  },
+  {
+    id: 'car_designer',
+    name: 'CHASSIS ARCHITECT',
+    description: 'Build and save your first custom 3D car design.',
+    xpBonus: 120,
+    category: 'gameplay',
+  },
+  {
+    id: 'phone_architect',
+    name: 'DEVICE CREATOR',
+    description: 'Design and save your first next-gen smartphone.',
+    xpBonus: 120,
+    category: 'gameplay',
+  },
+  {
+    id: 'studio_master',
+    name: 'STUDIO INNOVATOR',
+    description: 'Create both a custom car and a custom smartphone.',
+    xpBonus: 180,
+    category: 'mastery',
   },
 ];
 

@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { ArcadeProvider, useArcade } from './context/ArcadeContext.tsx';
-import { PixelWorldCanvas } from './components/PixelWorldCanvas.tsx';
-import { VoxelBackdrop } from './components/pixel/VoxelBackdrop.tsx';
 import { HowToPlayModal } from './components/pixel/HowToPlayModal.tsx';
 import { TopNav, type AppRoute } from './components/TopNav.tsx';
 import { RegisterModal } from './components/RegisterModal.tsx';
@@ -9,6 +7,7 @@ import { PixelCelebration } from './components/PixelCelebration.tsx';
 import { DevConsoleModal } from './components/DevConsoleModal.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { HomePage } from './pages/HomePage.tsx';
+import { EasyQuizPage } from './pages/EasyQuizPage.tsx';
 import { QuizStudioPage } from './pages/QuizStudioPage.tsx';
 import { QuestionBankPage } from './pages/QuestionBankPage.tsx';
 import { MistakesPage } from './pages/MistakesPage.tsx';
@@ -24,7 +23,11 @@ import { CodeBreakerGame } from './components/games/CodeBreakerGame.tsx';
 import { BossBattleGame } from './components/games/BossBattleGame.tsx';
 import { LogicLabGame } from './components/games/LogicLabGame.tsx';
 import { ComponentMatchGame } from './components/games/ComponentMatchGame.tsx';
-import type { ExamSettings, GameModeId, QuizMode } from '../shared/types.ts';
+import { AutoEngineerGame } from './components/games/auto/AutoEngineerGame.tsx';
+import type { CarBuildConfig } from './components/games/auto/carCatalog.ts';
+import { PhoneDesignerGame } from './components/games/phone/PhoneDesignerGame.tsx';
+import type { PhoneDesignState } from './components/games/phone/phoneCatalog.ts';
+import type { ExamSettings, GameModeId, QuizMode, SavedCreation } from '../shared/types.ts';
 import type { ActiveQuizDraft } from './utils/storageMigration.ts';
 
 const DEFAULT_SETTINGS: ExamSettings = {
@@ -52,12 +55,16 @@ function ArcadeShell() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
+  const [loadedCreation, setLoadedCreation] = useState<SavedCreation | null>(null);
 
   const navigate = (next: AppRoute) => {
     setActiveGame(null);
     setActiveExamSettings(null);
     setCustomExamQuestionIds(undefined);
     setResumedDraft(null);
+    if (next !== 'auto-engineer' && next !== 'phone-designer') {
+      setLoadedCreation(null);
+    }
     setRoute(next);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
@@ -65,9 +72,30 @@ function ArcadeShell() {
   const launchGame = (game: GameModeId, mode: QuizMode = 'practice') => {
     setActiveExamSettings(null);
     setResumedDraft(null);
+    setLoadedCreation(null);
+    if (game === 'auto-engineer') {
+      setActiveGame(null);
+      setRoute('auto-engineer');
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+    if (game === 'phone-designer') {
+      setActiveGame(null);
+      setRoute('phone-designer');
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
     setIqMode(mode);
     setRoute('arcade');
     setActiveGame(game);
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  };
+
+  const openCreationInStudio = (creation: SavedCreation) => {
+    setActiveGame(null);
+    setActiveExamSettings(null);
+    setLoadedCreation(creation);
+    setRoute(creation.type === 'car' ? 'auto-engineer' : 'phone-designer');
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
@@ -94,28 +122,20 @@ function ArcadeShell() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
-  const isArcadeSurface = route === 'arcade' || Boolean(activeGame);
+  const isFullscreenStudio = route === 'auto-engineer' || route === 'phone-designer';
 
   return (
-    <div
-      className={`min-h-screen flex flex-col relative ${
-        isArcadeSurface
-          ? 'arcade-surface bg-[var(--bg-canvas)] text-[var(--text-primary)]'
-          : 'bg-[var(--exam-bg)] text-[var(--exam-text)]'
-      }`}
-    >
-      {isArcadeSurface ? <PixelWorldCanvas /> : <VoxelBackdrop />}
-
+    <div className="min-h-screen flex flex-col relative bg-[var(--studio-bg)] text-[var(--studio-text)]">
       <TopNav
         route={route}
         inActiveQuiz={Boolean(activeExamSettings)}
         onNavigate={navigate}
-        onQuickPlay={() => startExamQuiz({ mode: 'quick', questionCount: 10, timeLimitMinutes: 8 })}
+        onQuickPlay={() => navigate('easy-quizzes')}
         onOpenRegister={() => setRegisterOpen(true)}
         onOpenHowToPlay={() => setHowToPlayOpen(true)}
       />
 
-      <main className="flex-1 relative z-10 pb-12">
+      <main className={`flex-1 relative z-10 ${isFullscreenStudio ? 'pb-0' : 'pb-12'}`}>
         <ErrorBoundary onGoHome={() => navigate('home')} onReportError={reportError}>
           {activeGame ? (
             <>
@@ -164,12 +184,51 @@ function ArcadeShell() {
             <>
               {route === 'home' && (
                 <HomePage
-                  onPlay={() => navigate('quiz-studio')}
-                  onStartExamPreset={(preset) => startExamQuiz(preset)}
+                  onOpenEasyQuiz={() => navigate('easy-quizzes')}
+                  onOpenAutoEngineer={() => {
+                    setLoadedCreation(null);
+                    navigate('auto-engineer');
+                  }}
+                  onOpenPhoneDesigner={() => {
+                    setLoadedCreation(null);
+                    navigate('phone-designer');
+                  }}
+                  onOpenArena={() => navigate('arcade')}
+                  onOpenExamStudio={() => navigate('quiz-studio')}
                   onResumeDraft={(draft) => resumeExamDraft(draft)}
-                  onOpenHowToPlay={() => setHowToPlayOpen(true)}
-                  onOpenAnalytics={() => navigate('analytics')}
                   onOpenTrophyRoom={() => navigate('leaderboard')}
+                  onOpenCreation={openCreationInStudio}
+                />
+              )}
+              {route === 'easy-quizzes' && (
+                <EasyQuizPage
+                  onOpenAdvancedStudio={() => navigate('quiz-studio')}
+                  onOpenArena={() => navigate('arcade')}
+                />
+              )}
+              {route === 'auto-engineer' && (
+                <AutoEngineerGame
+                  key={loadedCreation?.id || 'new-car'}
+                  initialBuild={
+                    loadedCreation?.type === 'car'
+                      ? (loadedCreation.payload as Partial<CarBuildConfig>)
+                      : null
+                  }
+                  initialTitle={loadedCreation?.type === 'car' ? loadedCreation.title : null}
+                  initialCreationId={loadedCreation?.type === 'car' ? loadedCreation.id : null}
+                  onExit={() => navigate('arcade')}
+                />
+              )}
+              {route === 'phone-designer' && (
+                <PhoneDesignerGame
+                  key={loadedCreation?.id || 'new-phone'}
+                  initialDesign={
+                    loadedCreation?.type === 'phone'
+                      ? (loadedCreation.payload as Partial<PhoneDesignState>)
+                      : null
+                  }
+                  initialCreationId={loadedCreation?.type === 'phone' ? loadedCreation.id : null}
+                  onExit={() => navigate('arcade')}
                 />
               )}
               {route === 'quiz-studio' && (
@@ -207,15 +266,34 @@ function ArcadeShell() {
                 />
               )}
               {route === 'arcade' && (
-                <ArcadeHubPage onSelectGame={(g, m) => launchGame(g, m)} />
+                <ArcadeHubPage
+                  onSelectGame={(g, m) => launchGame(g, m)}
+                  onOpenAutoEngineer={() => {
+                    setLoadedCreation(null);
+                    navigate('auto-engineer');
+                  }}
+                  onOpenPhoneDesigner={() => {
+                    setLoadedCreation(null);
+                    navigate('phone-designer');
+                  }}
+                />
               )}
               {route === 'leaderboard' && (
-                <LeaderboardPage onPlayCompete={() => startExamQuiz({ mode: 'quick' })} />
+                <LeaderboardPage onPlayCompete={() => navigate('easy-quizzes')} />
               )}
               {route === 'profile' && (
                 <ProfilePage
                   onOpenRegister={() => setRegisterOpen(true)}
-                  onPlay={() => navigate('quiz-studio')}
+                  onPlay={() => navigate('easy-quizzes')}
+                  onOpenCreation={openCreationInStudio}
+                  onOpenAutoEngineer={() => {
+                    setLoadedCreation(null);
+                    navigate('auto-engineer');
+                  }}
+                  onOpenPhoneDesigner={() => {
+                    setLoadedCreation(null);
+                    navigate('phone-designer');
+                  }}
                 />
               )}
               {route === 'admin' && (
@@ -226,22 +304,18 @@ function ArcadeShell() {
         </ErrorBoundary>
       </main>
 
-      <footer
-        className={`relative z-10 border-t-3 py-4 px-4 text-center text-xs ${
-          isArcadeSurface
-            ? 'border-[var(--border-pixel)] bg-[#04060E] font-code text-[var(--text-muted)]'
-            : 'border-[var(--exam-border)] bg-[var(--exam-nav-bg)] font-display-pixel text-[var(--exam-text-muted)]'
-        }`}
-      >
-        CG QUIZ · LEARN · PLAY · CHALLENGE YOURSELF
-      </footer>
+      {!isFullscreenStudio && (
+        <footer className="relative z-10 border-t border-[var(--studio-border)] bg-[var(--exam-nav-bg)] py-5 px-4 text-center font-mono-tech text-xs text-[var(--studio-text-muted)]">
+          CG QUIZ STUDIO · LEARN. BUILD. PLAY. CREATE.
+        </footer>
+      )}
 
       <RegisterModal open={registerOpen} onClose={() => setRegisterOpen(false)} />
 
       <HowToPlayModal
         open={howToPlayOpen}
         onClose={() => setHowToPlayOpen(false)}
-        onStartQuiz={() => startExamQuiz({ mode: 'quick', questionCount: 10, timeLimitMinutes: 8 })}
+        onStartQuiz={() => navigate('easy-quizzes')}
       />
 
       <PixelCelebration onTriggerDevMode={() => setDevOpen(true)} />

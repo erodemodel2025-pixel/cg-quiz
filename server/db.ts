@@ -188,6 +188,24 @@ db.exec(`
     completed_at TEXT NOT NULL,
     PRIMARY KEY (user_id, challenge_date)
   );
+
+  /* ============================================================
+     CG QUIZ STUDIO: User-Created Cars & Smartphones
+     ============================================================ */
+  CREATE TABLE IF NOT EXISTS creations (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL,
+    design_rating INTEGER NOT NULL DEFAULT 80,
+    estimated_cost INTEGER NOT NULL DEFAULT 0,
+    payload_json TEXT NOT NULL,
+    preview_data_url TEXT,
+    is_test INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 // Safe index creation for fast query/analytics performance
@@ -195,6 +213,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_exam_attempts_user_date ON exam_attempts(user_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_mistake_book_user ON mistake_book(user_id, resolved, last_missed_at DESC);
   CREATE INDEX IF NOT EXISTS idx_exam_questions_cat ON exam_questions(category_id, subject, difficulty);
+  CREATE INDEX IF NOT EXISTS idx_creations_user ON creations(user_id, updated_at DESC);
 `);
 
 // Safe additive column migration for per-session option-shuffled question snapshots

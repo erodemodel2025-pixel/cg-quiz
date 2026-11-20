@@ -7,25 +7,25 @@ import { QUESTION_BANK } from './questionBank.ts';
 import { validateQuestionBank } from './questionValidator.ts';
 import type { Difficulty, ExamDifficulty, ExamQuestion } from './types.ts';
 
-import admissionsJson from '../data/quiz/admissions.json';
-import branchesJson from '../data/quiz/branches.json';
-import careerFairJson from '../data/quiz/career-fair.json';
-import careersJson from '../data/quiz/careers.json';
-import collegesJson from '../data/quiz/colleges.json';
-import emergingTechJson from '../data/quiz/emerging-tech.json';
-import engineeringBasicsJson from '../data/quiz/engineering-basics.json';
-import gftisJson from '../data/quiz/gftis.json';
-import governmentCareersJson from '../data/quiz/government-careers.json';
-import higherStudiesJson from '../data/quiz/higher-studies.json';
-import iiitsJson from '../data/quiz/iiits.json';
-import iitsJson from '../data/quiz/iits.json';
-import jeeAdvancedJson from '../data/quiz/jee-advanced.json';
-import jeeMainJson from '../data/quiz/jee-main.json';
-import mixedJson from '../data/quiz/mixed.json';
-import nitsJson from '../data/quiz/nits.json';
-import skillsJson from '../data/quiz/skills.json';
-import technologiesJson from '../data/quiz/technologies.json';
-import tneaJson from '../data/quiz/tnea.json';
+import admissionsJson from '../data/quiz/admissions.json' with { type: 'json' };
+import branchesJson from '../data/quiz/branches.json' with { type: 'json' };
+import careerFairJson from '../data/quiz/career-fair.json' with { type: 'json' };
+import careersJson from '../data/quiz/careers.json' with { type: 'json' };
+import collegesJson from '../data/quiz/colleges.json' with { type: 'json' };
+import emergingTechJson from '../data/quiz/emerging-tech.json' with { type: 'json' };
+import engineeringBasicsJson from '../data/quiz/engineering-basics.json' with { type: 'json' };
+import gftisJson from '../data/quiz/gftis.json' with { type: 'json' };
+import governmentCareersJson from '../data/quiz/government-careers.json' with { type: 'json' };
+import higherStudiesJson from '../data/quiz/higher-studies.json' with { type: 'json' };
+import iiitsJson from '../data/quiz/iiits.json' with { type: 'json' };
+import iitsJson from '../data/quiz/iits.json' with { type: 'json' };
+import jeeAdvancedJson from '../data/quiz/jee-advanced.json' with { type: 'json' };
+import jeeMainJson from '../data/quiz/jee-main.json' with { type: 'json' };
+import mixedJson from '../data/quiz/mixed.json' with { type: 'json' };
+import nitsJson from '../data/quiz/nits.json' with { type: 'json' };
+import skillsJson from '../data/quiz/skills.json' with { type: 'json' };
+import technologiesJson from '../data/quiz/technologies.json' with { type: 'json' };
+import tneaJson from '../data/quiz/tnea.json' with { type: 'json' };
 
 const DIFF_MAP: Record<Difficulty, ExamDifficulty> = {
   EASY: 'Easy',

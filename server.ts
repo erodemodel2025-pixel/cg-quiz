@@ -1203,6 +1203,253 @@ async function startServer() {
     res.json({ questions: QUESTION_BANK });
   });
 
+  /* ============================================================
+     CG QUIZ STUDIO: Creations & Easy Quiz Completion Routes
+     ============================================================ */
+  app.get('/api/creations', (req, res) => {
+    try {
+      const userId = String(req.query.userId ?? '').trim();
+      const type = String(req.query.type ?? 'all').trim();
+      if (!userId) {
+        res.json({ creations: [] });
+        return;
+      }
+      const rows = (
+        type === 'car' || type === 'phone'
+          ? db
+              .prepare(
+                `SELECT id, user_id, type, title, subtitle, design_rating, estimated_cost, payload_json, preview_data_url, created_at, updated_at
+                 FROM creations WHERE user_id = ? AND type = ? AND is_test = 0 ORDER BY updated_at DESC LIMIT 40`
+              )
+              .all(userId, type)
+          : db
+              .prepare(
+                `SELECT id, user_id, type, title, subtitle, design_rating, estimated_cost, payload_json, preview_data_url, created_at, updated_at
+                 FROM creations WHERE user_id = ? AND is_test = 0 ORDER BY updated_at DESC LIMIT 40`
+              )
+              .all(userId)
+      ) as Array<{
+        id: string;
+        user_id: string;
+        type: 'car' | 'phone';
+        title: string;
+        subtitle: string;
+        design_rating: number;
+        estimated_cost: number;
+        payload_json: string;
+        preview_data_url: string | null;
+        created_at: string;
+        updated_at: string;
+      }>;
+
+      res.json({
+        creations: rows.map((r) => ({
+          id: r.id,
+          userId: r.user_id,
+          type: r.type,
+          title: r.title,
+          subtitle: r.subtitle,
+          designRating: r.design_rating,
+          estimatedCost: r.estimated_cost,
+          payload: JSON.parse(r.payload_json) as Record<string, unknown>,
+          previewDataUrl: r.preview_data_url,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        })),
+      });
+    } catch (err) {
+      logServerError('/api/creations', String(err));
+      res.status(500).json({ error: 'Unable to load saved creations.' });
+    }
+  });
+
+  app.post('/api/creations', (req, res) => {
+    try {
+      const userId = String(req.body?.userId ?? '').trim() || 'guest_studio';
+      const type = req.body?.type === 'phone' ? 'phone' : 'car';
+      const title = String(req.body?.title ?? (type === 'car' ? 'Custom Machine' : 'Next Smartphone'))
+        .trim()
+        .slice(0, 60);
+      const subtitle = String(req.body?.subtitle ?? '').trim().slice(0, 120);
+      const designRating = Math.max(0, Math.min(100, Math.round(Number(req.body?.designRating ?? 80))));
+      const estimatedCost = Math.max(0, Math.round(Number(req.body?.estimatedCost ?? 0)));
+      const payload = (req.body?.payload && typeof req.body.payload === 'object' ? req.body.payload : {}) as Record<
+        string,
+        unknown
+      >;
+      const rawPreview = typeof req.body?.previewDataUrl === 'string' ? req.body.previewDataUrl : null;
+      const previewDataUrl = rawPreview && rawPreview.length <= 450000 ? rawPreview : null;
+      const isTest = req.body?.isTest === true ? 1 : 0;
+      const existingId = req.body?.id ? String(req.body.id).trim() : '';
+      const now = new Date().toISOString();
+
+      const existingRow = existingId
+        ? (db.prepare('SELECT id, created_at FROM creations WHERE id = ? AND user_id = ?').get(existingId, userId) as
+            | { id: string; created_at: string }
+            | undefined)
+        : undefined;
+
+      const creationId = existingRow?.id || `cr_${type}_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+      const createdAt = existingRow?.created_at || now;
+
+      if (existingRow) {
+        db.prepare(
+          `UPDATE creations
+           SET title = ?, subtitle = ?, design_rating = ?, estimated_cost = ?, payload_json = ?, preview_data_url = COALESCE(?, preview_data_url), updated_at = ?
+           WHERE id = ? AND user_id = ?`
+        ).run(
+          title,
+          subtitle,
+          designRating,
+          estimatedCost,
+          JSON.stringify(payload),
+          previewDataUrl,
+          now,
+          creationId,
+          userId
+        );
+      } else {
+        db.prepare(
+          `INSERT INTO creations (
+            id, user_id, type, title, subtitle, design_rating, estimated_cost,
+            payload_json, preview_data_url, is_test, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          creationId,
+          userId,
+          type,
+          title,
+          subtitle,
+          designRating,
+          estimatedCost,
+          JSON.stringify(payload),
+          previewDataUrl,
+          isTest,
+          createdAt,
+          now
+        );
+      }
+
+      let playerResult: PlayerProfile | null = null;
+      let leveledUp = false;
+      let unlockedAchievements: string[] = [];
+      const xpAward = existingRow ? 20 : 50;
+
+      const playerExists = db.prepare('SELECT id FROM players WHERE id = ?').get(userId);
+      if (playerExists) {
+        const typeRows = db
+          .prepare('SELECT DISTINCT type FROM creations WHERE user_id = ? AND is_test = 0')
+          .all(userId) as Array<{ type: string }>;
+        const typesSet = new Set(typeRows.map((r) => r.type));
+        typesSet.add(type);
+        const achs = ['first_run', type === 'car' ? 'car_designer' : 'phone_architect'];
+        if (typesSet.has('car') && typesSet.has('phone')) {
+          achs.push('studio_master');
+        }
+        const prog = updatePlayerProgression({
+          playerId: userId,
+          xpEarned: xpAward,
+          maxStreak: 0,
+          newAchievements: achs,
+        });
+        playerResult = prog.player;
+        leveledUp = prog.leveledUp;
+        unlockedAchievements = prog.unlockedAchievements;
+      }
+
+      res.status(existingRow ? 200 : 201).json({
+        creation: {
+          id: creationId,
+          userId,
+          type,
+          title,
+          subtitle,
+          designRating,
+          estimatedCost,
+          payload,
+          previewDataUrl,
+          createdAt,
+          updatedAt: now,
+        },
+        xpEarned: xpAward,
+        leveledUp,
+        unlockedAchievements,
+        player: playerResult,
+      });
+    } catch (err) {
+      logServerError('/api/creations', String(err));
+      res.status(500).json({ error: 'Unable to save creation.' });
+    }
+  });
+
+  app.delete('/api/creations/:id', (req, res) => {
+    try {
+      const userId = String(req.query.userId ?? '').trim();
+      if (!userId) {
+        res.status(400).json({ error: 'userId is required.' });
+        return;
+      }
+      const result = db
+        .prepare('DELETE FROM creations WHERE id = ? AND user_id = ?')
+        .run(req.params.id, userId);
+      res.json({ deleted: result.changes > 0 });
+    } catch (err) {
+      logServerError('/api/creations/:id', String(err));
+      res.status(500).json({ error: 'Unable to delete creation.' });
+    }
+  });
+
+  app.post('/api/studio/easy-complete', (req, res) => {
+    try {
+      const userId = req.body?.userId ? String(req.body.userId).trim() : null;
+      const categoryId = String(req.body?.categoryId ?? 'general-knowledge');
+      const difficulty = String(req.body?.difficulty ?? 'Easy');
+      const correctCount = Math.max(0, Number(req.body?.correctCount ?? 0));
+      const totalQuestions = Math.max(1, Number(req.body?.totalQuestions ?? 10));
+      const maxStreak = Math.max(0, Number(req.body?.maxStreak ?? 0));
+      const accuracy = Math.round((correctCount / totalQuestions) * 100);
+      const xpEarned = Math.max(15, correctCount * 12 + (accuracy >= 80 ? 25 : 0));
+
+      let playerResult: PlayerProfile | null = null;
+      let leveledUp = false;
+      let unlockedAchievements: string[] = [];
+
+      if (userId) {
+        const playerExists = db.prepare('SELECT id FROM players WHERE id = ?').get(userId);
+        if (playerExists) {
+          const achs = ['first_run'];
+          if (accuracy >= 80) achs.push('easy_scholar');
+          if (maxStreak >= 5) achs.push('streak_master');
+          if (accuracy === 100 && totalQuestions >= 5) achs.push('perfect_run');
+          const prog = updatePlayerProgression({
+            playerId: userId,
+            xpEarned,
+            maxStreak,
+            newAchievements: achs,
+          });
+          playerResult = prog.player;
+          leveledUp = prog.leveledUp;
+          unlockedAchievements = prog.unlockedAchievements;
+        }
+      }
+
+      res.json({
+        categoryId,
+        difficulty,
+        correctCount,
+        totalQuestions,
+        accuracy,
+        xpEarned,
+        leveledUp,
+        unlockedAchievements,
+        player: playerResult,
+      });
+    } catch (err) {
+      logServerError('/api/studio/easy-complete', String(err));
+      res.status(500).json({ error: 'Unable to record Easy Quiz completion.' });
+    }
+  });
+
   app.post('/api/dev/reset-test', (req, res) => {
     if (req.headers['x-cgquiz-dev'] !== DEV_HEADER_TOKEN) {
       res.status(403).json({ error: 'Developer token required.' });
@@ -1213,6 +1460,7 @@ async function startServer() {
     const delPlayers = db.prepare('DELETE FROM players WHERE is_test = 1').run().changes;
     const delExamAttempts = db.prepare('DELETE FROM exam_attempts WHERE is_test = 1').run().changes;
     const delExamSessions = db.prepare('DELETE FROM exam_sessions WHERE is_test = 1').run().changes;
+    const delCreations = db.prepare('DELETE FROM creations WHERE is_test = 1').run().changes;
     res.json({
       cleared: {
         testPlayers: delPlayers,
@@ -1220,6 +1468,7 @@ async function startServer() {
         testSubmissions: delSubs,
         testExamAttempts: delExamAttempts,
         testExamSessions: delExamSessions,
+        testCreations: delCreations,
       },
       preservedRealData: true,
     });

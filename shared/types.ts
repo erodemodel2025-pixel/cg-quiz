@@ -8,7 +8,9 @@ export type GameModeId =
   | 'code-breaker'
   | 'boss-battle'
   | 'logic-lab'
-  | 'component-match';
+  | 'component-match'
+  | 'auto-engineer'
+  | 'phone-designer';
 
 export type PixelThemeId =
   | 'cyber-midnight'
@@ -431,3 +433,58 @@ export interface DailyExamStatus {
   totalParticipants?: number;
   weakArea?: string | null;
 }
+
+/* ============================================================
+   CG QUIZ STUDIO: EASY QUIZ ZONE & CREATIONS TYPES
+   ============================================================ */
+
+export type EasyDifficulty = 'Beginner' | 'Easy' | 'Easy Challenge';
+
+export type EasyCategoryId =
+  | 'general-knowledge'
+  | 'science'
+  | 'physics'
+  | 'chemistry'
+  | 'mathematics'
+  | 'computer-science'
+  | 'engineering'
+  | 'automobile'
+  | 'space'
+  | 'ai'
+  | 'tech-innovation';
+
+export interface EasyCategoryInfo {
+  id: EasyCategoryId;
+  name: string;
+  shortName: string;
+  description: string;
+  accentColor: string;
+  iconKey: string;
+}
+
+export interface EasyQuizQuestion {
+  id: string;
+  categoryId: EasyCategoryId;
+  difficulty: EasyDifficulty;
+  question: string;
+  options: [string, string, string, string];
+  correctIndex: 0 | 1 | 2 | 3;
+  explanation: string;
+}
+
+export type CreationType = 'car' | 'phone';
+
+export interface SavedCreation {
+  id: string;
+  userId: string;
+  type: CreationType;
+  title: string;
+  subtitle: string;
+  designRating: number;
+  estimatedCost: number;
+  payload: Record<string, unknown>;
+  previewDataUrl?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
